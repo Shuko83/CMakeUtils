@@ -25,19 +25,22 @@ Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/target.c
 
 ### Dossiers par défaut
 
-`CMakeUtils.cmake` définit deux variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
+`CMakeUtils.cmake` définit quatre variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
 
-| Variable                 | Défaut    | Rôle                                   |
-| ------------------------ | --------- | -------------------------------------- |
-| `cmu_public_headers_dir` | `include` | Dossier des en-têtes publics           |
-| `cmu_sources_dir`        | `src`     | Dossier des sources et en-têtes privés |
+| Variable                 | Défaut    | Rôle                                                    |
+| ------------------------ | --------- | ------------------------------------------------------- |
+| `cmu_public_headers_dir` | `include` | Dossier des en-têtes publics                            |
+| `cmu_sources_dir`        | `src`     | Dossier des sources et en-têtes privés                  |
+| `cmu_sources_extension`  | `cpp`     | Extension(s) des sources (liste, ex. `cpp;cc`)          |
+| `cmu_headers_extension`  | `h`       | Extension(s) des en-têtes (liste, ex. `h;hpp`)          |
 
 ```cmake
 set(cmu_public_headers_dir "api")
+set(cmu_headers_extension "h;hpp")
 include(chemin/vers/CMakeUtils/CMakeUtils.cmake)
 ```
 
-Elles peuvent aussi être modifiées avec `cmake -Dcmu_sources_dir=lib ...`. Les chemins relatifs sont relatifs au `CMakeLists.txt` appelant. Ces variables sont lues à chaque appel de `cmu_add_target` (voir ci-dessous).
+Elles peuvent aussi être modifiées avec `cmake -Dcmu_sources_dir=lib ...`. Les chemins relatifs sont relatifs au `CMakeLists.txt` appelant. Ces variables sont lues à chaque appel de `cmu_add_target` (voir ci-dessous). Une extension vide désactive la recherche automatique correspondante.
 
 ## Modules
 
@@ -65,7 +68,7 @@ cmu_add_target(
 | --------------------- | ----------------------------------------------------------------------------- |
 | `NAME`                | Nom de la target (obligatoire)                                                |
 | `TYPE`                | `EXECUTABLE` → `add_executable()`, les autres → `add_library()` (obligatoire) |
-| `SOURCES`             | Fichiers sources, relatifs à `cmu_sources_dir`                                |
+| `SOURCES`             | Fichiers sources supplémentaires, relatifs à `cmu_sources_dir`                |
 | `INCLUDE_DIRECTORIES` | Transmis à `target_include_directories()`                                     |
 | `COMPILE_DEFINITIONS` | Transmis à `target_compile_definitions()`                                     |
 | `COMPILE_OPTIONS`     | Transmis à `target_compile_options()`                                         |
@@ -77,29 +80,42 @@ Les valeurs des six derniers mots-clés sont transmises telles quelles à la com
 
 Les chemins de `SOURCES` relatifs sont préfixés par `cmu_sources_dir` (`SOURCES core.cpp` désigne `src/core.cpp`) ; les chemins absolus et les expressions génératrices (`$<...>`) sont gardés tels quels.
 
+La target est remplie automatiquement (recherche récursive, sans doublons avec `SOURCES`) :
+
+- tous les fichiers `*.<cmu_sources_extension>` de `cmu_sources_dir` (sauf pour une target `INTERFACE`) ;
+- tous les fichiers `*.<cmu_headers_extension>` de `cmu_public_headers_dir` (pour une target `INTERFACE`, uniquement avec CMake 3.19 ou supérieur).
+
+La recherche utilise `CONFIGURE_DEPENDS` : un fichier ajouté ou supprimé est pris en compte à la compilation suivante. Elle prend tout le dossier : une seule target par couple `cmu_sources_dir` / `cmu_public_headers_dir`, soit un `CMakeLists.txt` par target.
+
 Si les dossiers `cmu_public_headers_dir` et `cmu_sources_dir` existent, ils sont ajoutés automatiquement avant les `INCLUDE_DIRECTORIES` : `cmu_public_headers_dir` en `PUBLIC` (`INTERFACE` pour une target `INTERFACE`) et `cmu_sources_dir` en `PRIVATE` (ignoré pour une target `INTERFACE`).
 
-Exemple :
+Exemple, avec un `CMakeLists.txt` par target (`core/include/core.h`, `core/src/core.cpp`, `app/src/main.cpp`) :
 
 ```cmake
+# CMakeLists.txt
 include(chemin/vers/CMakeUtils/CMakeUtils.cmake)
 
+add_subdirectory(core)
+add_subdirectory(app)
+```
+
+```cmake
+# core/CMakeLists.txt
 cmu_add_target(
     NAME core
     TYPE STATIC
-    SOURCES core.cpp
     COMPILE_DEFINITIONS PUBLIC CORE_VALUE=42
     COMPILE_FEATURES PUBLIC cxx_std_17
 )
+```
 
+```cmake
+# app/CMakeLists.txt
 cmu_add_target(
     NAME app
     TYPE EXECUTABLE
-    SOURCES main.cpp
     LINK_LIBRARIES PRIVATE core
 )
-
-cmu_add_target(NAME utils TYPE INTERFACE)
 ```
 
 Un projet complet est disponible dans [exemple/](exemple/CMakeLists.txt).

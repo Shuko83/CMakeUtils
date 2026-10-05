@@ -20,15 +20,38 @@ macro(cmu_add_target)
             "EXECUTABLE, STATIC, SHARED, MODULE, OBJECT, INTERFACE (got '${_ADD_TARGET_TYPE}')")
     endif()
 
-    # Relative sources are resolved against cmu_sources_dir; absolute paths and generator expressions are kept.
+    # Explicit sources: relative ones resolve against cmu_sources_dir; generator expressions are kept as is.
     set(_ADD_TARGET_RESOLVED_SOURCES)
     foreach(_ADD_TARGET_SOURCE IN LISTS _ADD_TARGET_SOURCES)
-        if(DEFINED cmu_sources_dir AND NOT IS_ABSOLUTE "${_ADD_TARGET_SOURCE}" AND NOT "${_ADD_TARGET_SOURCE}" MATCHES "^\\$<")
-            list(APPEND _ADD_TARGET_RESOLVED_SOURCES "${cmu_sources_dir}/${_ADD_TARGET_SOURCE}")
-        else()
+        if("${_ADD_TARGET_SOURCE}" MATCHES "^\\$<")
             list(APPEND _ADD_TARGET_RESOLVED_SOURCES "${_ADD_TARGET_SOURCE}")
+        else()
+            if(DEFINED cmu_sources_dir AND NOT IS_ABSOLUTE "${_ADD_TARGET_SOURCE}")
+                set(_ADD_TARGET_SOURCE "${cmu_sources_dir}/${_ADD_TARGET_SOURCE}")
+            endif()
+            get_filename_component(_ADD_TARGET_PATH "${_ADD_TARGET_SOURCE}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+            list(APPEND _ADD_TARGET_RESOLVED_SOURCES "${_ADD_TARGET_PATH}")
         endif()
     endforeach()
+
+    # Every source/header found in the default directories joins the target (an INTERFACE target compiles no source).
+    if(DEFINED cmu_sources_dir AND DEFINED cmu_sources_extension AND NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE")
+        get_filename_component(_ADD_TARGET_DIR "${cmu_sources_dir}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+        foreach(_ADD_TARGET_EXT IN LISTS cmu_sources_extension)
+            file(GLOB_RECURSE _ADD_TARGET_FOUND CONFIGURE_DEPENDS "${_ADD_TARGET_DIR}/*.${_ADD_TARGET_EXT}")
+            list(APPEND _ADD_TARGET_RESOLVED_SOURCES ${_ADD_TARGET_FOUND})
+        endforeach()
+    endif()
+    # Sources on an INTERFACE target need CMake 3.19.
+    if(DEFINED cmu_public_headers_dir AND DEFINED cmu_headers_extension
+            AND (NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE" OR NOT CMAKE_VERSION VERSION_LESS 3.19))
+        get_filename_component(_ADD_TARGET_DIR "${cmu_public_headers_dir}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+        foreach(_ADD_TARGET_EXT IN LISTS cmu_headers_extension)
+            file(GLOB_RECURSE _ADD_TARGET_FOUND CONFIGURE_DEPENDS "${_ADD_TARGET_DIR}/*.${_ADD_TARGET_EXT}")
+            list(APPEND _ADD_TARGET_RESOLVED_SOURCES ${_ADD_TARGET_FOUND})
+        endforeach()
+    endif()
+    list(REMOVE_DUPLICATES _ADD_TARGET_RESOLVED_SOURCES)
 
     if(_ADD_TARGET_TYPE STREQUAL "EXECUTABLE")
         add_executable(${_ADD_TARGET_NAME} ${_ADD_TARGET_RESOLVED_SOURCES})
