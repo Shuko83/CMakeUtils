@@ -21,6 +21,8 @@ list(APPEND CMAKE_MODULE_PATH "chemin/vers/CMakeUtils")
 include(CMakeUtils)
 ```
 
+`CMakeUtils.cmake` doit être inclus après `project()` : sinon la configuration s'arrête avec l'erreur `CMakeUtils must be included after project()`.
+
 Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/target.cmake)`), sans les dossiers par défaut ci-dessous.
 
 ### Dossiers par défaut
@@ -41,6 +43,20 @@ include(chemin/vers/CMakeUtils/CMakeUtils.cmake)
 ```
 
 Elles peuvent aussi être modifiées avec `cmake -Dcmu_sources_dir=lib ...`. Les chemins relatifs sont relatifs au `CMakeLists.txt` appelant. Ces variables sont lues à chaque appel de `cmu_add_target` (voir ci-dessous). Une extension vide désactive la recherche automatique correspondante.
+
+### C++ récent
+
+`CMakeUtils.cmake` applique ces règles aux targets créées après son inclusion (dans le dossier courant et ses sous-dossiers) :
+
+| Variable                      | Valeur                    | Effet                                       |
+| ----------------------------- | ------------------------- | ------------------------------------------- |
+| `CMAKE_CXX_STANDARD`          | le plus récent supporté   | Compile avec le dernier standard C++ du compilateur |
+| `CMAKE_CXX_STANDARD_REQUIRED` | `ON`                      | Erreur si le compilateur ne le supporte pas |
+| `CMAKE_CXX_EXTENSIONS`        | `OFF`                     | Standard pur (`-std=c++NN`, pas `gnu++NN`)  |
+
+Le standard retenu est le plus récent parmi 26 et 23 que CMake reconnaît pour le compilateur (`CMAKE_CXX_COMPILE_FEATURES`), sinon 20. Avec MSVC 19.51 et CMake 4.4, c'est C++23 (`/std:c++latest`).
+
+Une variable déjà définie avant l'inclusion (ou avec `-D`) est conservée, par exemple `-DCMAKE_CXX_STANDARD=20`.
 
 ## Modules
 
@@ -105,7 +121,6 @@ cmu_add_target(
     NAME core
     TYPE STATIC
     COMPILE_DEFINITIONS PUBLIC CORE_VALUE=42
-    COMPILE_FEATURES PUBLIC cxx_std_17
 )
 ```
 

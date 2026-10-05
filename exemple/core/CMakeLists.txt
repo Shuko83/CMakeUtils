@@ -2,5 +2,4 @@ cmu_add_target(
     NAME core
     TYPE STATIC
     COMPILE_DEFINITIONS PUBLIC CORE_VALUE=42
-    COMPILE_FEATURES PUBLIC cxx_std_17
 )

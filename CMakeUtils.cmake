@@ -1,4 +1,8 @@
 # Entry point: sets the default directories (cache entries, unless already defined) and loads every module.
+if(NOT DEFINED CMAKE_PROJECT_NAME)
+    message(FATAL_ERROR "CMakeUtils must be included after project()")
+endif()
+
 if(NOT DEFINED cmu_public_headers_dir)
     set(cmu_public_headers_dir "include" CACHE STRING "Public headers directory used by cmu_add_target")
 endif()
@@ -10,6 +14,27 @@ if(NOT DEFINED cmu_sources_extension)
 endif()
 if(NOT DEFINED cmu_headers_extension)
     set(cmu_headers_extension "h" CACHE STRING "Header file extension(s) globbed in cmu_public_headers_dir")
+endif()
+
+# Modern C++ rules; apply to the targets created after this file is included.
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    # Newest standard the compiler supports (CMAKE_CXX_COMPILE_FEATURES is only filled after project()).
+    set(CMAKE_CXX_STANDARD 20)
+    foreach(_cmu_std 26 23)
+        list(FIND CMAKE_CXX_COMPILE_FEATURES cxx_std_${_cmu_std} _cmu_index)
+        if(NOT _cmu_index EQUAL -1)
+            set(CMAKE_CXX_STANDARD ${_cmu_std})
+            break()
+        endif()
+    endforeach()
+    unset(_cmu_std)
+    unset(_cmu_index)
+endif()
+if(NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
+if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
+    set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/target.cmake)
