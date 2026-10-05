@@ -1,0 +1,10 @@
+# Lets find_package(Qt6) work from the QTDIR environment variable (e.g. C:\Qt\6.11.2\msvc2022_64).
+if(DEFINED ENV{QTDIR})
+    file(TO_CMAKE_PATH "$ENV{QTDIR}" _cmu_qt_dir)
+    list(FIND CMAKE_PREFIX_PATH "${_cmu_qt_dir}" _cmu_qt_index)
+    if(IS_DIRECTORY "${_cmu_qt_dir}" AND _cmu_qt_index EQUAL -1)
+        list(APPEND CMAKE_PREFIX_PATH "${_cmu_qt_dir}")
+    endif()
+    unset(_cmu_qt_dir)
+    unset(_cmu_qt_index)
+endif()

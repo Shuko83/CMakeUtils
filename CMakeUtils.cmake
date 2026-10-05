@@ -37,4 +37,5 @@ if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
     set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
 
+include(${CMAKE_CURRENT_LIST_DIR}/qt.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/target.cmake)

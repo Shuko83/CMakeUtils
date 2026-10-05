@@ -1,3 +1,5 @@
 #include "core.h"
 
-int core() { return CORE_VALUE; }
+#include <QString>
+
+int core() { return QString::number(CORE_VALUE).toInt(); }

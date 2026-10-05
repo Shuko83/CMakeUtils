@@ -111,6 +111,8 @@ Exemple, avec un `CMakeLists.txt` par target (`core/include/core.h`, `core/src/c
 # CMakeLists.txt
 include(chemin/vers/CMakeUtils/CMakeUtils.cmake)
 
+find_package(Qt6 REQUIRED COMPONENTS Core)
+
 add_subdirectory(core)
 add_subdirectory(app)
 ```
@@ -121,6 +123,7 @@ cmu_add_target(
     NAME core
     TYPE STATIC
     COMPILE_DEFINITIONS PUBLIC CORE_VALUE=42
+    LINK_LIBRARIES PRIVATE Qt6::Core
 )
 ```
 
@@ -133,7 +136,7 @@ cmu_add_target(
 )
 ```
 
-Un projet complet est disponible dans [exemple/](exemple/CMakeLists.txt).
+Un projet complet est disponible dans [exemple/](exemple/CMakeLists.txt). Il dépend de Qt 6 (CMake 3.16 minimum), trouvé grâce à la variable d'environnement `QTDIR` (voir [qt.cmake](#qtcmake)) ; sinon, indiquer son emplacement avec `-DCMAKE_PREFIX_PATH`, par exemple `cmake -S exemple -B build -DCMAKE_PREFIX_PATH=C:/Qt/6.11.2/msvc2022_64`.
 
 Remarques :
 
@@ -142,3 +145,12 @@ Remarques :
 - `SOURCES` avec `TYPE INTERFACE` nécessite CMake 3.19.
 - `cmu_add_target` est une macro : elle s'exécute dans la portée de l'appelant. Ses variables internes (préfixe `_ADD_TARGET_`) sont supprimées en fin d'appel.
 - Une macro réévalue ses arguments : utiliser `/` dans les chemins, un `\` provoque l'erreur `Invalid character escape`.
+
+### qt.cmake
+
+Ajoute le contenu de la variable d'environnement `QTDIR` (par exemple `C:\Qt\6.11.2\msvc2022_64`) à `CMAKE_PREFIX_PATH`, ce qui permet à `find_package(Qt6 ...)` de trouver Qt sans `-DCMAKE_PREFIX_PATH`.
+
+- Chargé automatiquement par `CMakeUtils.cmake`, ou inclus seul : `include(chemin/vers/CMakeUtils/qt.cmake)`.
+- Le chemin est ajouté à la fin de `CMAKE_PREFIX_PATH` : un chemin déjà présent est prioritaire, et il n'est pas ajouté deux fois.
+- Sans effet si `QTDIR` n'est pas définie ou ne désigne pas un dossier existant.
+- Doit être inclus avant `find_package(Qt6 ...)`.
