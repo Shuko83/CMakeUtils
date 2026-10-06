@@ -27,7 +27,7 @@ Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/Utils/ta
 
 ### Dossiers par défaut
 
-`CMakeUtils.cmake` définit quatre variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
+`CMakeUtils.cmake` définit cinq variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
 
 | Variable                 | Défaut    | Rôle                                                    |
 | ------------------------ | --------- | ------------------------------------------------------- |
@@ -72,6 +72,7 @@ cmu_add_target(
     TYPE <EXECUTABLE|STATIC|SHARED|MODULE|OBJECT|INTERFACE>
     [SHARED_EXTENSION <extension>]
     [NAMESPACE <namespace>]
+    [VERSION <version>]
     [SOURCES <fichier>...]
     [INCLUDE_DIRECTORIES <portée> <dossier>...]
     [COMPILE_DEFINITIONS <portée> <définition>...]
@@ -88,6 +89,7 @@ cmu_add_target(
 | `TYPE`                | `EXECUTABLE` → `add_executable()`, les autres → `add_library()` (obligatoire) |
 | `SHARED_EXTENSION`    | Extension du fichier d'une bibliothèque `SHARED`, avec ou sans point (`plugin`, `.plugin`) ; sans effet, avec un avertissement, pour les autres types |
 | `NAMESPACE`           | Crée l'alias `<namespace>::<NAME>` de la target, avec ou sans `::` final (`namespace` ou `namespace::`) |
+| `VERSION`             | Version de la target écrite dans l'en-tête d'informations (défaut : `PROJECT_VERSION`, sinon `0.0.0`) |
 | `SOURCES`             | Fichiers sources supplémentaires, relatifs à `cmu_sources_dir`                |
 | `INCLUDE_DIRECTORIES` | Transmis à `target_include_directories()`                                     |
 | `COMPILE_DEFINITIONS` | Transmis à `target_compile_definitions()`                                     |

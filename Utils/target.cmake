@@ -5,7 +5,7 @@ macro(cmu_add_target)
     # TYPE takes a value, not a flag, so INTERFACE stays usable as a scope keyword in the lists.
     cmake_parse_arguments(_ADD_TARGET
         ""
-        "NAME;TYPE;SHARED_EXTENSION;NAMESPACE"
+        "NAME;TYPE;SHARED_EXTENSION;NAMESPACE;VERSION"
         "SOURCES;INCLUDE_DIRECTORIES;COMPILE_DEFINITIONS;COMPILE_OPTIONS;COMPILE_FEATURES;LINK_LIBRARIES;LINK_OPTIONS"
         ${ARGN})
 
@@ -136,6 +136,13 @@ macro(cmu_add_target)
         target_link_options(${_ADD_TARGET_NAME} ${_ADD_TARGET_LINK_OPTIONS})
     endif()
 
+        if(DEFINED _ADD_TARGET_VERSION)
+            set(_ADD_TARGET_INFO_VERSION "${_ADD_TARGET_VERSION}")
+        elseif(PROJECT_VERSION)
+            set(_ADD_TARGET_INFO_VERSION "${PROJECT_VERSION}")
+        else()
+            set(_ADD_TARGET_INFO_VERSION "0.0.0")
+        endif()
     # Collected for the automatic package (package.cmake); an OBJECT library cannot be exported.
     if(NOT _ADD_TARGET_TYPE STREQUAL "OBJECT")
         set_property(GLOBAL APPEND PROPERTY CMU_PACKAGE_TARGETS ${_ADD_TARGET_NAME})
