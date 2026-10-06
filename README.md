@@ -23,7 +23,7 @@ include(CMakeUtils)
 
 `CMakeUtils.cmake` doit être inclus après `project()` : sinon la configuration s'arrête avec l'erreur `CMakeUtils must be included after project()`.
 
-Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/target.cmake)`), sans les dossiers par défaut ci-dessous.
+Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/Utils/target.cmake)`), sans les dossiers par défaut ci-dessous.
 
 ### Dossiers par défaut
 
@@ -166,7 +166,7 @@ Remarques :
 
 Ajoute le contenu de la variable d'environnement `QTDIR` (par exemple `C:\Qt\6.11.2\msvc2022_64`) à `CMAKE_PREFIX_PATH`, ce qui permet à `find_package(Qt6 ...)` de trouver Qt sans `-DCMAKE_PREFIX_PATH`.
 
-- Chargé automatiquement par `CMakeUtils.cmake`, ou inclus seul : `include(chemin/vers/CMakeUtils/qt.cmake)`.
+- Chargé automatiquement par `CMakeUtils.cmake`, ou inclus seul : `include(chemin/vers/CMakeUtils/Utils/qt.cmake)`.
 - Le chemin est ajouté à la fin de `CMAKE_PREFIX_PATH` : un chemin déjà présent est prioritaire, et il n'est pas ajouté deux fois.
 - Sans effet si `QTDIR` n'est pas définie ou ne désigne pas un dossier existant.
 - Doit être inclus avant `find_package(Qt6 ...)`.
