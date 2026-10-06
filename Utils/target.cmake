@@ -123,7 +123,7 @@ macro(cmu_add_target)
     # Public <NAME>_export.h (<NAME>_EXPORT), generated in the build tree and installed with the public headers.
     set(_ADD_TARGET_AUTOGEN_FILES)
     if(NOT _ADD_TARGET_TYPE MATCHES "^(INTERFACE|EXECUTABLE)$")
-        set(_ADD_TARGET_PUBLIC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${_ADD_TARGET_NAME}_autogen/public")
+        set(_ADD_TARGET_PUBLIC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${_ADD_TARGET_NAME}_autogen/cmu/public")
         set(_ADD_TARGET_EXPORT_FILE "${_ADD_TARGET_PUBLIC_DIR}/${_ADD_TARGET_NAME}_export.h")
         generate_export_header(${_ADD_TARGET_NAME} EXPORT_FILE_NAME "${_ADD_TARGET_EXPORT_FILE}")
         # A static library must not import its own symbols: the macro stays empty with <NAME>_STATIC_DEFINE.
@@ -158,7 +158,7 @@ macro(cmu_add_target)
         target_link_options(${_ADD_TARGET_NAME} ${_ADD_TARGET_LINK_OPTIONS})
     endif()
 
-    # Info files <NAME>_info.h/.cpp, generated where Qt puts its moc files (<target>_autogen/include).
+    # Info files <NAME>_info.h/.cpp, generated in <target>_autogen/cmu, next to Qt's generated files.
     if(NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE")
         string(MAKE_C_IDENTIFIER "${_ADD_TARGET_NAME}" _ADD_TARGET_IDENT)
 
@@ -189,7 +189,7 @@ macro(cmu_add_target)
             set(_ADD_TARGET_INFO_COMPILER "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
         endif()
 
-        set(_ADD_TARGET_INFO_DIR "${CMAKE_CURRENT_BINARY_DIR}/${_ADD_TARGET_NAME}_autogen/include")
+        set(_ADD_TARGET_INFO_DIR "${CMAKE_CURRENT_BINARY_DIR}/${_ADD_TARGET_NAME}_autogen/cmu/include")
         configure_file("${_CMU_TEMPLATE_DIR}/target_info.h.in"
             "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.h" @ONLY)
         configure_file("${_CMU_TEMPLATE_DIR}/target_info.cpp.in"
@@ -236,9 +236,9 @@ macro(cmu_add_target)
         endif()
     endif()
 
-    # Visual Studio / Xcode folder holding the generated files, with a subfolder per Qt generator.
+    # Visual Studio / Xcode folder holding the generated files: cmu for CMakeUtils, one subfolder per Qt generator.
     if(_ADD_TARGET_AUTOGEN_FILES)
-        source_group(autogen FILES ${_ADD_TARGET_AUTOGEN_FILES})
+        source_group("autogen\\cmu" FILES ${_ADD_TARGET_AUTOGEN_FILES})
     endif()
     if(NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE")
         # The files only exist at generate time and are named per configuration: match them by name.
