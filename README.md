@@ -107,38 +107,68 @@ La recherche utilise `CONFIGURE_DEPENDS` : un fichier ajouté ou supprimé est p
 
 Si les dossiers `cmu_public_headers_dir` et `cmu_sources_dir` existent, ils sont ajoutés automatiquement avant les `INCLUDE_DIRECTORIES` : `cmu_public_headers_dir` en `PUBLIC` (`INTERFACE` pour une target `INTERFACE`) et `cmu_sources_dir` en `PRIVATE` (ignoré pour une target `INTERFACE`).
 
-Exemple, avec un `CMakeLists.txt` par target (`core/include/core.h`, `core/src/core.cpp`, `app/src/main.cpp`) :
+Exemple, avec un `CMakeLists.txt` par target (voir [exemple/](exemple/CMakeLists.txt)) :
+
+```
+exemple/
+├── CMakeLists.txt
+├── MyStaticLib/   include/MyStaticLib.h, src/MyStaticLib.cpp
+├── MySharedLib/   include/MySharedLib.h, src/MySharedLib.cpp
+├── MyApp/         src/main.cpp
+└── MyQtApp/       src/main.cpp
+```
 
 ```cmake
 # CMakeLists.txt
+cmake_minimum_required(VERSION 3.16)
+project(exemple LANGUAGES CXX)
+
 include(chemin/vers/CMakeUtils/CMakeUtils.cmake)
 
 find_package(Qt6 REQUIRED COMPONENTS Core)
 
-add_subdirectory(core)
-add_subdirectory(app)
+# Exécutables et DLL côte à côte : MySharedLib.dll est trouvée au lancement
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+add_subdirectory(MyStaticLib)
+add_subdirectory(MySharedLib)
+add_subdirectory(MyApp)
+add_subdirectory(MyQtApp)
 ```
 
 ```cmake
-# core/CMakeLists.txt
-cmu_add_target(
-    NAME core
-    TYPE STATIC
-    COMPILE_DEFINITIONS PUBLIC CORE_VALUE=42
-    LINK_LIBRARIES PRIVATE Qt6::Core
+# MyStaticLib/CMakeLists.txt : bibliothèque statique
+cmu_add_static_library(
+    NAME MyStaticLib
+    COMPILE_DEFINITIONS PRIVATE MYSTATICLIB_VALUE=1
 )
 ```
 
 ```cmake
-# app/CMakeLists.txt
-cmu_add_target(
-    NAME app
-    TYPE EXECUTABLE
-    LINK_LIBRARIES PRIVATE core
+# MySharedLib/CMakeLists.txt : bibliothèque partagée (MYSHAREDLIB_BUILD fait exporter les symboles)
+cmu_add_shared_library(
+    NAME MySharedLib
+    COMPILE_DEFINITIONS PRIVATE MYSHAREDLIB_BUILD
 )
 ```
 
-Des raccourcis appellent `cmu_add_target` avec un `TYPE` fixé ; ils acceptent les mêmes mots-clés, sauf `TYPE` :
+```cmake
+# MyApp/CMakeLists.txt : exécutable utilisant les deux bibliothèques
+cmu_add_executable(
+    NAME MyApp
+    LINK_LIBRARIES PRIVATE MyStaticLib MySharedLib
+)
+```
+
+```cmake
+# MyQtApp/CMakeLists.txt : idem, plus Qt Core (windeployqt est lancé après la compilation)
+cmu_add_executable(
+    NAME MyQtApp
+    LINK_LIBRARIES PRIVATE MyStaticLib MySharedLib Qt6::Core
+)
+```
+
+Ces macros sont des raccourcis de `cmu_add_target` avec un `TYPE` fixé ; elles acceptent les mêmes mots-clés, sauf `TYPE` :
 
 | Macro                        | Équivaut à `TYPE` |
 | ---------------------------- | ----------------- |
@@ -148,11 +178,7 @@ Des raccourcis appellent `cmu_add_target` avec un `TYPE` fixé ; ils acceptent l
 | `cmu_add_interface_library`  | `INTERFACE`       |
 | `cmu_add_object_library`     | `OBJECT`          |
 
-```cmake
-cmu_add_static_library(NAME core LINK_LIBRARIES PRIVATE Qt6::Core)
-```
-
-Un projet complet est disponible dans [exemple/](exemple/CMakeLists.txt). Il dépend de Qt 6 (CMake 3.16 minimum), trouvé grâce à la variable d'environnement `QTDIR` (voir [qt.cmake](#qtcmake)) ; sinon, indiquer son emplacement avec `-DCMAKE_PREFIX_PATH`, par exemple `cmake -S exemple -B build -DCMAKE_PREFIX_PATH=C:/Qt/6.11.2/msvc2022_64`.
+L'exemple dépend de Qt 6 (CMake 3.16 minimum), trouvé grâce à la variable d'environnement `QTDIR` (voir [qt.cmake](#qtcmake)) ; sinon, indiquer son emplacement avec `-DCMAKE_PREFIX_PATH`, par exemple `cmake -S exemple -B build -DCMAKE_PREFIX_PATH=C:/Qt/6.11.2/msvc2022_64`.
 
 Remarques :
 

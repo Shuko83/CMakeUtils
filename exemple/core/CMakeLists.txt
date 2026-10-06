@@ -1,6 +1,0 @@
-cmu_add_target(
-    NAME core
-    TYPE STATIC
-    COMPILE_DEFINITIONS PUBLIC CORE_VALUE=42
-    LINK_LIBRARIES PRIVATE Qt6::Core
-)
