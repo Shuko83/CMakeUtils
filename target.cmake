@@ -5,7 +5,7 @@ macro(cmu_add_target)
     # TYPE takes a value, not a flag, so INTERFACE stays usable as a scope keyword in the lists.
     cmake_parse_arguments(_ADD_TARGET
         ""
-        "NAME;TYPE"
+        "NAME;TYPE;SHARED_EXTENSION"
         "SOURCES;INCLUDE_DIRECTORIES;COMPILE_DEFINITIONS;COMPILE_OPTIONS;COMPILE_FEATURES;LINK_LIBRARIES;LINK_OPTIONS"
         ${ARGN})
 
@@ -57,6 +57,20 @@ macro(cmu_add_target)
         add_executable(${_ADD_TARGET_NAME} ${_ADD_TARGET_RESOLVED_SOURCES})
     else()
         add_library(${_ADD_TARGET_NAME} ${_ADD_TARGET_TYPE} ${_ADD_TARGET_RESOLVED_SOURCES})
+    endif()
+
+    # The extension is accepted with or without its leading dot; SUFFIX needs the dot.
+    if(DEFINED _ADD_TARGET_SHARED_EXTENSION)
+        if(_ADD_TARGET_TYPE STREQUAL "SHARED")
+            string(REGEX REPLACE "^\\." "" _ADD_TARGET_SHARED_EXTENSION "${_ADD_TARGET_SHARED_EXTENSION}")
+            if(_ADD_TARGET_SHARED_EXTENSION STREQUAL "")
+                set_target_properties(${_ADD_TARGET_NAME} PROPERTIES SUFFIX "")
+            else()
+                set_target_properties(${_ADD_TARGET_NAME} PROPERTIES SUFFIX ".${_ADD_TARGET_SHARED_EXTENSION}")
+            endif()
+        else()
+            message(WARNING "cmu_add_target(${_ADD_TARGET_NAME}): SHARED_EXTENSION is ignored for TYPE ${_ADD_TARGET_TYPE}")
+        endif()
     endif()
 
     # Default include directories, only when they exist (relative paths resolve against the caller).
