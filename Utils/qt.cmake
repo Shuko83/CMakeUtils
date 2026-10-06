@@ -57,9 +57,9 @@ function(_cmu_qt_windeployqt result)
     endif()
 endfunction()
 
-# Installs the executable, then deploys Qt next to the installed file (called by cmu_add_package after
-# install(TARGETS), so that the rule runs once the executable is in place).
-function(_cmu_qt_install_deploy target component)
+# Deploys Qt next to the installed executable; <bindir> is its install directory relative to the prefix
+# (called after install(TARGETS), so that the rule runs once the executable is in place).
+function(_cmu_qt_install_deploy target component bindir)
     if(NOT WIN32 OR NOT cmu_windeployqt)
         return()
     endif()
@@ -82,7 +82,7 @@ function(_cmu_qt_install_deploy target component)
     endif()
     install(CODE "
         execute_process(COMMAND \"${_windeployqt}\"
-            \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/$<TARGET_FILE_NAME:${target}>\")
+            \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${bindir}/$<TARGET_FILE_NAME:${target}>\")
     " COMPONENT ${component})
 endfunction()
 

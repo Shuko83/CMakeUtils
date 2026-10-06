@@ -191,19 +191,69 @@ Remarques :
 
 ### package.cmake
 
-#### Paquet automatique
+#### Mode d'installation
 
-Sans rien changer au `CMakeLists.txt`, chaque projet qui inclut `CMakeUtils.cmake` obtient, une fois la compilation finie, un paquet prêt pour `find_package` dans `<build>/package` (variable `cmu_package_dir`) :
+Sans rien changer au `CMakeLists.txt`, toutes les targets créées avec `cmu_add_target` (sauf `OBJECT`) sont installées par `cmake --install`, et copiées dans `<build>/package` (variable `cmu_package_dir`) une fois la compilation finie par la target `cmu_package`, incluse dans `ALL`. La variable `cmu_install_mode` choisit la façon d'installer :
+
+| `cmu_install_mode`  | Disposition                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| `TARGET` (défaut)   | Chaque target dans son dossier : `<prefix>/<target>/<config>/{bin,lib,include}`                   |
+| `PACKAGE`           | Tout dans un seul préfixe, avec les fichiers `Config.cmake` pour `find_package` (voir plus bas)   |
+
+| Variable           | Défaut            | Rôle                                                  |
+| ------------------ | ----------------- | ----------------------------------------------------- |
+| `cmu_package`      | `ON`              | `OFF` désactive l'installation automatique            |
+| `cmu_package_dir`  | `<build>/package` | Dossier où le résultat est copié après la compilation |
+| `cmu_install_mode` | `TARGET`          | `TARGET` ou `PACKAGE`                                 |
+
+#### Mode `TARGET`
+
+Avec le préfixe par défaut (`<build>/../install`), `cmake --install --config Debug` donne :
+
+```
+install/
+├── MyStaticLib/Debug/    include/MyStaticLib.h, lib/MyStaticLib.lib
+├── MySharedLib/Debug/    include/MySharedLib.h, lib/MySharedLib.lib, bin/MySharedLib.dll
+├── MyApp/Debug/          bin/MyApp.exe, bin/MySharedLib.dll
+└── MyQtApp/Debug/        bin/MyQtApp.exe, bin/MySharedLib.dll, bin/Qt6Cored.dll, ...
+```
+
+- Une bibliothèque installe ses binaires et ses en-têtes publics (`cmu_public_headers_dir`).
+- Un exécutable est prêt à être lancé : les bibliothèques partagées du projet dont il dépend sont copiées dans son `bin/`, et `windeployqt` y déploie Qt s'il en dépend (voir [qt.cmake](#qtcmake)).
+- Les configurations coexistent (`Debug`, `Release`) sous chaque target. Un préfixe choisi avec `-DCMAKE_INSTALL_PREFIX=...` ou `cmake --install --prefix ...` garde la même disposition `<prefix>/<target>/<config>`.
+- `cmu_install_targets(TARGETS <target>...)` fait la même chose pour une liste choisie et remplace l'installation automatique.
+
+Chaque target est un composant du paquet global (nom du projet) : fichiers `.cmake` pour `find_package`.
+
+```
+install/
+├── exempleConfig.cmake, exempleConfigVersion.cmake      (paquet global, à la racine)
+├── MyStaticLib/cmake/   MyStaticLibConfig.cmake, MyStaticLibTargets.cmake, MyStaticLibTargets-<config>.cmake
+└── ...                  un sous-dossier cmake/ identique par target
+```
+
+- `<target>Targets.cmake` déclare la target importée `<projet>::<target>` et couvre toutes les configurations installées (`Debug`, `Release`), chacune pointant vers son `<target>/<config>/`.
+- `<target>Config.cmake` reprend les `find_package()` dont la target a besoin (par exemple Qt) et charge les composants dont elle dépend (`MyQtApp` charge `MyStaticLib` et `MySharedLib`).
+- `exempleConfig.cmake` charge les composants demandés, ou tous s'il n'y en a pas, et renseigne `exemple_<composant>_FOUND` ; un composant `REQUIRED` inconnu fait échouer `find_package`.
+
+```cmake
+# Projet tiers, avec CMAKE_PREFIX_PATH=chemin/vers/install
+find_package(exemple REQUIRED COMPONENTS MyStaticLib MySharedLib)
+target_link_libraries(app PRIVATE exemple::MyStaticLib exemple::MySharedLib)
+```
+
+- Sans `COMPONENTS`, tous les composants sont chargés (donc leurs dépendances, comme Qt, doivent être trouvables).
+- Les en-têtes publics sont installés dans chaque configuration ; une cible importée utilise ceux de la première configuration installée.
+- La version du paquet vient de `project(... VERSION ...)`, `0.0.0` sans version : `find_package(exemple 1.0)` n'accepte pas un paquet en `0.0.0`.
+
+#### Mode `PACKAGE`
+
+`cmake -Dcmu_install_mode=PACKAGE` : une fois la compilation finie, un paquet prêt pour `find_package` dans `<build>/package` :
 
 - `<PROJECT_NAME>Config.cmake`, `<PROJECT_NAME>ConfigVersion.cmake` et `<PROJECT_NAME>Targets.cmake` dans `lib/cmake/<PROJECT_NAME>` ;
 - les bibliothèques, les exécutables et les en-têtes publics des targets créées avec `cmu_add_target` (sauf `OBJECT`, non exportable), préfixées par `<PROJECT_NAME>::`.
 
 Une target spéciale `cmu_package`, incluse dans `ALL`, copie le paquet après la dernière target ; `cmake --install` installe les mêmes fichiers.
-
-| Variable          | Défaut             | Rôle                                      |
-| ----------------- | ------------------ | ----------------------------------------- |
-| `cmu_package`     | `ON`               | `OFF` désactive le paquet automatique     |
-| `cmu_package_dir` | `<build>/package`  | Dossier où le paquet est copié            |
 
 - La version vient de `project(... VERSION x.y.z)` ; sans version, le paquet est en `0.0.0`.
 - Les dépendances sont déduites : un appel à `find_package()` est repris dans `Config.cmake` si une target du paquet est liée à une target `<Paquet>::...` (par exemple `Qt6::Core` pour `find_package(Qt6 REQUIRED COMPONENTS Core)`). Seuls les appels faits après l'inclusion de `CMakeUtils.cmake` sont vus ; si `find_package` est déjà redéfini (vcpkg par exemple), la déduction est désactivée.
@@ -212,7 +262,7 @@ Une target spéciale `cmu_package`, incluse dans `ALL`, copie le paquet après l
 
 #### Dossier d'installation par défaut
 
-Pour le projet racine, `CMAKE_INSTALL_PREFIX` vaut par défaut `<build>/../install`, à côté du dossier de build quel que soit son emplacement, et `cmake --install --config <config>` installe dans `<build>/../install/<config>` (par exemple `install/Debug`). Un préfixe choisi avec `-DCMAKE_INSTALL_PREFIX=...` ou `cmake --install --prefix ...` est utilisé tel quel, sans sous-dossier de configuration.
+Pour le projet racine, `CMAKE_INSTALL_PREFIX` vaut par défaut `<build>/../install`, à côté du dossier de build quel que soit son emplacement. En mode `PACKAGE`, `cmake --install --config <config>` installe dans `<build>/../install/<config>` (par exemple `install/Debug`) ; un préfixe choisi avec `-DCMAKE_INSTALL_PREFIX=...` ou `cmake --install --prefix ...` est alors utilisé tel quel, sans sous-dossier de configuration. En mode `TARGET`, voir plus haut.
 
 #### `cmu_add_package`
 

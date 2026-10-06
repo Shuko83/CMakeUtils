@@ -1,0 +1,21 @@
+@PACKAGE_INIT@
+
+# find_package(<package> COMPONENTS <target>...): every target is a component with its own Config; none requested = all.
+set(_cmu_prefix "${PACKAGE_PREFIX_DIR}")
+set(_cmu_available @CMU_COMPONENTS@)
+set(_cmu_requested ${@CMU_PACKAGE_NAME@_FIND_COMPONENTS})
+if(NOT _cmu_requested)
+    set(_cmu_requested ${_cmu_available})
+endif()
+
+foreach(_cmu_component IN LISTS _cmu_requested)
+    list(FIND _cmu_available "${_cmu_component}" _cmu_index)
+    if(_cmu_index EQUAL -1)
+        set(@CMU_PACKAGE_NAME@_${_cmu_component}_FOUND FALSE)
+    else()
+        include("${_cmu_prefix}/${_cmu_component}/@CMU_COMPONENT_CMAKE_DIR@/${_cmu_component}Config.cmake")
+        set(@CMU_PACKAGE_NAME@_${_cmu_component}_FOUND TRUE)
+    endif()
+endforeach()
+
+check_required_components(@CMU_PACKAGE_NAME@)
