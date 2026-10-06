@@ -187,6 +187,91 @@ Remarques :
 - `SOURCES` avec `TYPE INTERFACE` nécessite CMake 3.19.
 - `cmu_add_target` est une macro : elle s'exécute dans la portée de l'appelant. Ses variables internes (préfixe `_ADD_TARGET_`) sont supprimées en fin d'appel.
 - Une macro réévalue ses arguments : utiliser `/` dans les chemins, un `\` provoque l'erreur `Invalid character escape`.
+- `cmu_public_headers_dir` n'est visible que depuis l'arbre de sources (`$<BUILD_INTERFACE:...>`) pour que la target soit exportable ; `cmu_add_package` fournit le chemin d'installation.
+
+### package.cmake
+
+#### Paquet automatique
+
+Sans rien changer au `CMakeLists.txt`, chaque projet qui inclut `CMakeUtils.cmake` obtient, une fois la compilation finie, un paquet prêt pour `find_package` dans `<build>/package` (variable `cmu_package_dir`) :
+
+- `<PROJECT_NAME>Config.cmake`, `<PROJECT_NAME>ConfigVersion.cmake` et `<PROJECT_NAME>Targets.cmake` dans `lib/cmake/<PROJECT_NAME>` ;
+- les bibliothèques, les exécutables et les en-têtes publics des targets créées avec `cmu_add_target` (sauf `OBJECT`, non exportable), préfixées par `<PROJECT_NAME>::`.
+
+Une target spéciale `cmu_package`, incluse dans `ALL`, copie le paquet après la dernière target ; `cmake --install` installe les mêmes fichiers.
+
+| Variable          | Défaut             | Rôle                                      |
+| ----------------- | ------------------ | ----------------------------------------- |
+| `cmu_package`     | `ON`               | `OFF` désactive le paquet automatique     |
+| `cmu_package_dir` | `<build>/package`  | Dossier où le paquet est copié            |
+
+- La version vient de `project(... VERSION x.y.z)` ; sans version, le paquet est en `0.0.0`.
+- Les dépendances sont déduites : un appel à `find_package()` est repris dans `Config.cmake` si une target du paquet est liée à une target `<Paquet>::...` (par exemple `Qt6::Core` pour `find_package(Qt6 REQUIRED COMPONENTS Core)`). Seuls les appels faits après l'inclusion de `CMakeUtils.cmake` sont vus ; si `find_package` est déjà redéfini (vcpkg par exemple), la déduction est désactivée.
+- Nécessite CMake 3.19 (`cmake_language(DEFER)`) ; sinon seul `cmu_add_package` est disponible.
+- Un appel explicite à `cmu_add_package` remplace le paquet automatique.
+
+#### Dossier d'installation par défaut
+
+Pour le projet racine, `CMAKE_INSTALL_PREFIX` vaut par défaut `<build>/../install`, à côté du dossier de build quel que soit son emplacement, et `cmake --install --config <config>` installe dans `<build>/../install/<config>` (par exemple `install/Debug`). Un préfixe choisi avec `-DCMAKE_INSTALL_PREFIX=...` ou `cmake --install --prefix ...` est utilisé tel quel, sans sous-dossier de configuration.
+
+#### `cmu_add_package`
+
+Version manuelle, pour choisir le nom, les targets, les dépendances, etc. Génère les fichiers `<NAME>Config.cmake` et `<NAME>ConfigVersion.cmake` lus par `find_package(<NAME>)`, et les installe. Avec `TARGETS`, exporte aussi les targets (`<NAME>Targets.cmake`) et installe les en-têtes publics.
+
+```cmake
+cmu_add_package(
+    [NAME <nom>]
+    [VERSION <x.y.z>]
+    [COMPATIBILITY <AnyNewerVersion|SameMajorVersion|SameMinorVersion|ExactVersion>]
+    [ARCH_INDEPENDENT]
+    [NAMESPACE <préfixe>]
+    [DESTINATION <dossier>]
+    [TARGETS <target>...]
+    [HEADERS <dossier>...]
+    [DEPENDENCIES <"arguments de find_package">...]
+)
+```
+
+| Mot-clé            | Rôle                                                                                         | Défaut                                |
+| ------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `NAME`             | Nom du paquet                                                                                | `PROJECT_NAME`                        |
+| `VERSION`          | Version du paquet                                                                            | `PROJECT_VERSION` (obligatoire sinon) |
+| `COMPATIBILITY`    | Règle de compatibilité des versions demandées                                                | `SameMajorVersion`                    |
+| `ARCH_INDEPENDENT` | Ignore l'architecture (paquet d'en-têtes seuls), CMake 3.14 minimum                          | désactivé                             |
+| `NAMESPACE`        | Préfixe des targets exportées                                                                | `<NAME>::`                            |
+| `DESTINATION`      | Dossier d'installation des fichiers `.cmake`, relatif au préfixe                             | `lib/cmake/<NAME>`                    |
+| `TARGETS`          | Targets installées et exportées                                                              | aucune                                |
+| `HEADERS`          | Dossiers d'en-têtes installés dans `include` (filtrés par `cmu_headers_extension`)           | `cmu_public_headers_dir`, s'il existe |
+| `DEPENDENCIES`     | Chaque valeur, entre guillemets, devient un `find_dependency(...)` dans `<NAME>Config.cmake` | aucune                                |
+
+Les fichiers sont générés dans `CMAKE_CURRENT_BINARY_DIR`. `HEADERS` sert quand les targets sont dans plusieurs sous-dossiers (le défaut ne vise que le dossier courant).
+
+```cmake
+# CMakeLists.txt
+project(exemple VERSION 1.2.3 LANGUAGES CXX)
+include(chemin/vers/CMakeUtils/CMakeUtils.cmake)
+
+add_subdirectory(MyStaticLib)
+
+cmu_add_package(
+    TARGETS MyStaticLib
+    HEADERS MyStaticLib/include
+)
+```
+
+Un projet tiers l'utilise après `cmake --install` :
+
+```cmake
+find_package(exemple 1.0 REQUIRED)
+target_link_libraries(app PRIVATE exemple::MyStaticLib)
+```
+
+Remarques :
+
+- Les dépendances `PRIVATE` d'une bibliothèque statique restent nécessaires à l'édition de liens : les déclarer dans `DEPENDENCIES`.
+- Un argument inconnu, une `COMPATIBILITY` invalide ou une version absente arrête la configuration avec un message d'erreur.
+- `cmu_add_package` est une fonction : elle ne laisse aucune variable dans la portée de l'appelant.
+- Le projet doit être compilé avant `cmake --install`.
 
 ### qt.cmake
 
@@ -196,3 +281,12 @@ Ajoute le contenu de la variable d'environnement `QTDIR` (par exemple `C:\Qt\6.1
 - Le chemin est ajouté à la fin de `CMAKE_PREFIX_PATH` : un chemin déjà présent est prioritaire, et il n'est pas ajouté deux fois.
 - Sans effet si `QTDIR` n'est pas définie ou ne désigne pas un dossier existant.
 - Doit être inclus avant `find_package(Qt6 ...)`.
+
+#### `windeployqt` automatique
+
+Sous Windows, tout exécutable créé avec `cmu_add_target` (ou `cmu_add_executable`) qui dépend de Qt exécute `windeployqt` après sa compilation : les DLL et plugins Qt sont copiés à côté de l'exécutable. La dépendance est cherchée dans tout le graphe de liens, y compris à travers les bibliothèques (`app` → `core` → `Qt6::Core`).
+
+- `windeployqt` vient de la target `Qt6::windeployqt`, sinon de `windeployqt6` / `windeployqt` trouvé dans `CMAKE_PREFIX_PATH` ou le `PATH` ; s'il est introuvable, un avertissement est affiché.
+- À l'installation (`cmake --install` et copie du paquet automatique), `windeployqt` est aussi lancé sur l'exécutable installé : les DLL Qt se retrouvent dans `bin/`, à côté de lui. Cela passe par `cmu_add_package` (automatique ou explicite, avec l'exécutable dans `TARGETS`).
+- `-Dcmu_windeployqt=OFF` désactive ce comportement.
+- Nécessite CMake 3.19. Seules les bibliothèques déjà déclarées à la fin du `CMakeLists.txt` de l'exécutable sont examinées : ajouter les sous-dossiers des bibliothèques avant celui de l'exécutable.

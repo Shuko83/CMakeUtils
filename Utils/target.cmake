@@ -53,6 +53,19 @@ macro(cmu_add_target)
     endif()
     list(REMOVE_DUPLICATES _ADD_TARGET_RESOLVED_SOURCES)
 
+    # INTERFACE_SOURCES is exported by install(EXPORT): source-tree paths must not leak into it.
+    if(_ADD_TARGET_TYPE STREQUAL "INTERFACE")
+        set(_ADD_TARGET_BUILD_SOURCES)
+        foreach(_ADD_TARGET_SOURCE IN LISTS _ADD_TARGET_RESOLVED_SOURCES)
+            if("${_ADD_TARGET_SOURCE}" MATCHES "^\\$<")
+                list(APPEND _ADD_TARGET_BUILD_SOURCES "${_ADD_TARGET_SOURCE}")
+            else()
+                list(APPEND _ADD_TARGET_BUILD_SOURCES "$<BUILD_INTERFACE:${_ADD_TARGET_SOURCE}>")
+            endif()
+        endforeach()
+        set(_ADD_TARGET_RESOLVED_SOURCES ${_ADD_TARGET_BUILD_SOURCES})
+    endif()
+
     if(_ADD_TARGET_TYPE STREQUAL "EXECUTABLE")
         add_executable(${_ADD_TARGET_NAME} ${_ADD_TARGET_RESOLVED_SOURCES})
     else()
@@ -82,7 +95,8 @@ macro(cmu_add_target)
     if(DEFINED cmu_public_headers_dir)
         get_filename_component(_ADD_TARGET_DIR "${cmu_public_headers_dir}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
         if(IS_DIRECTORY "${_ADD_TARGET_DIR}")
-            target_include_directories(${_ADD_TARGET_NAME} ${_ADD_TARGET_HEADER_SCOPE} "${cmu_public_headers_dir}")
+            # Source-tree path: usable from the build tree only (cmu_add_package sets the installed one).
+            target_include_directories(${_ADD_TARGET_NAME} ${_ADD_TARGET_HEADER_SCOPE} "$<BUILD_INTERFACE:${_ADD_TARGET_DIR}>")
         endif()
     endif()
     if(DEFINED cmu_sources_dir AND NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE")
@@ -110,6 +124,23 @@ macro(cmu_add_target)
     endif()
     if(DEFINED _ADD_TARGET_LINK_OPTIONS)
         target_link_options(${_ADD_TARGET_NAME} ${_ADD_TARGET_LINK_OPTIONS})
+    endif()
+
+    # Collected for the automatic package (package.cmake); an OBJECT library cannot be exported.
+    if(NOT _ADD_TARGET_TYPE STREQUAL "OBJECT")
+        set_property(GLOBAL APPEND PROPERTY CMU_PACKAGE_TARGETS ${_ADD_TARGET_NAME})
+        if(DEFINED cmu_public_headers_dir)
+            get_filename_component(_ADD_TARGET_DIR "${cmu_public_headers_dir}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+            if(IS_DIRECTORY "${_ADD_TARGET_DIR}")
+                set_property(GLOBAL APPEND PROPERTY CMU_PACKAGE_HEADERS "${_ADD_TARGET_DIR}")
+            endif()
+        endif()
+    endif()
+
+    # Deferred to the end of this directory: add_custom_command(TARGET) is limited to the target's directory.
+    # EVAL bakes the name in: deferred arguments are expanded late, after the cleanup below.
+    if(_ADD_TARGET_TYPE STREQUAL "EXECUTABLE" AND COMMAND _cmu_qt_deploy AND NOT CMAKE_VERSION VERSION_LESS 3.19)
+        cmake_language(EVAL CODE "cmake_language(DEFER CALL _cmu_qt_deploy [[${_ADD_TARGET_NAME}]])")
     endif()
 
     # A macro runs in the caller's scope: drop every temporary variable.

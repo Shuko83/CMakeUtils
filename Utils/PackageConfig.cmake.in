@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+@CMU_PACKAGE_DEPENDENCIES@
+@CMU_PACKAGE_TARGETS@
+
+check_required_components(@CMU_PACKAGE_NAME@)
