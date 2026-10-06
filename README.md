@@ -71,6 +71,7 @@ cmu_add_target(
     NAME <nom>
     TYPE <EXECUTABLE|STATIC|SHARED|MODULE|OBJECT|INTERFACE>
     [SHARED_EXTENSION <extension>]
+    [NAMESPACE <namespace>]
     [SOURCES <fichier>...]
     [INCLUDE_DIRECTORIES <portée> <dossier>...]
     [COMPILE_DEFINITIONS <portée> <définition>...]
@@ -86,6 +87,7 @@ cmu_add_target(
 | `NAME`                | Nom de la target (obligatoire)                                                |
 | `TYPE`                | `EXECUTABLE` → `add_executable()`, les autres → `add_library()` (obligatoire) |
 | `SHARED_EXTENSION`    | Extension du fichier d'une bibliothèque `SHARED`, avec ou sans point (`plugin`, `.plugin`) ; sans effet, avec un avertissement, pour les autres types |
+| `NAMESPACE`           | Crée l'alias `<namespace>::<NAME>` de la target, avec ou sans `::` final (`namespace` ou `namespace::`) |
 | `SOURCES`             | Fichiers sources supplémentaires, relatifs à `cmu_sources_dir`                |
 | `INCLUDE_DIRECTORIES` | Transmis à `target_include_directories()`                                     |
 | `COMPILE_DEFINITIONS` | Transmis à `target_compile_definitions()`                                     |

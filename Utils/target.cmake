@@ -5,7 +5,7 @@ macro(cmu_add_target)
     # TYPE takes a value, not a flag, so INTERFACE stays usable as a scope keyword in the lists.
     cmake_parse_arguments(_ADD_TARGET
         ""
-        "NAME;TYPE;SHARED_EXTENSION"
+        "NAME;TYPE;SHARED_EXTENSION;NAMESPACE"
         "SOURCES;INCLUDE_DIRECTORIES;COMPILE_DEFINITIONS;COMPILE_OPTIONS;COMPILE_FEATURES;LINK_LIBRARIES;LINK_OPTIONS"
         ${ARGN})
 
@@ -70,6 +70,16 @@ macro(cmu_add_target)
         add_executable(${_ADD_TARGET_NAME} ${_ADD_TARGET_RESOLVED_SOURCES})
     else()
         add_library(${_ADD_TARGET_NAME} ${_ADD_TARGET_TYPE} ${_ADD_TARGET_RESOLVED_SOURCES})
+    endif()
+
+    # NAMESPACE is accepted with or without its trailing "::".
+    if(DEFINED _ADD_TARGET_NAMESPACE AND NOT _ADD_TARGET_NAMESPACE STREQUAL "")
+        string(REGEX REPLACE "(::)?$" "" _ADD_TARGET_NAMESPACE "${_ADD_TARGET_NAMESPACE}")
+        if(_ADD_TARGET_TYPE STREQUAL "EXECUTABLE")
+            add_executable(${_ADD_TARGET_NAMESPACE}::${_ADD_TARGET_NAME} ALIAS ${_ADD_TARGET_NAME})
+        else()
+            add_library(${_ADD_TARGET_NAMESPACE}::${_ADD_TARGET_NAME} ALIAS ${_ADD_TARGET_NAME})
+        endif()
     endif()
 
     # The extension is accepted with or without its leading dot; SUFFIX needs the dot.
