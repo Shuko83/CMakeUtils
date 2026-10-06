@@ -118,6 +118,29 @@ macro(cmu_add_target)
         endif()
     endif()
 
+    # <NAME>_BUILD (upper case identifier) tells the target's own sources apart from its users, e.g. for dllexport.
+    if(NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE")
+        string(MAKE_C_IDENTIFIER "${_ADD_TARGET_NAME}" _ADD_TARGET_UPPER)
+        string(TOUPPER "${_ADD_TARGET_UPPER}" _ADD_TARGET_UPPER)
+        target_compile_definitions(${_ADD_TARGET_NAME} PRIVATE ${_ADD_TARGET_UPPER}_BUILD)
+    endif()
+
+    # Public <NAME>_constante.h (<NAME>_EXPORT), generated in the build tree and installed with the public headers.
+    if(NOT _ADD_TARGET_TYPE MATCHES "^(INTERFACE|EXECUTABLE)$")
+        if(_ADD_TARGET_TYPE MATCHES "^(SHARED|MODULE)$")
+            set(_ADD_TARGET_DYNAMIC 1)
+        else()
+            set(_ADD_TARGET_DYNAMIC 0)
+        endif()
+        set(_ADD_TARGET_PUBLIC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${_ADD_TARGET_NAME}_autogen/public")
+        configure_file("${_CMU_TEMPLATE_DIR}/target_constante.h.in"
+            "${_ADD_TARGET_PUBLIC_DIR}/${_ADD_TARGET_NAME}_constante.h" @ONLY)
+        target_sources(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_PUBLIC_DIR}/${_ADD_TARGET_NAME}_constante.h")
+        target_include_directories(${_ADD_TARGET_NAME} PUBLIC "$<BUILD_INTERFACE:${_ADD_TARGET_PUBLIC_DIR}>")
+        set_property(GLOBAL PROPERTY CMU_GENERATED_HEADER_${_ADD_TARGET_NAME}
+            "${_ADD_TARGET_PUBLIC_DIR}/${_ADD_TARGET_NAME}_constante.h")
+    endif()
+
     # DEFINED rather than truthiness: a list ending in "-NOTFOUND" would evaluate to false.
     if(DEFINED _ADD_TARGET_INCLUDE_DIRECTORIES)
         target_include_directories(${_ADD_TARGET_NAME} ${_ADD_TARGET_INCLUDE_DIRECTORIES})

@@ -114,6 +114,15 @@ La recherche utilise `CONFIGURE_DEPENDS` : un fichier ajouté ou supprimé est p
 
 Si les dossiers `cmu_public_headers_dir` et `cmu_sources_dir` existent, ils sont ajoutés automatiquement avant les `INCLUDE_DIRECTORIES` : `cmu_public_headers_dir` en `PUBLIC` (`INTERFACE` pour une target `INTERFACE`) et `cmu_sources_dir` en `PRIVATE` (ignoré pour une target `INTERFACE`).
 
+Pour chaque target non `INTERFACE`, la définition `<NAME>_BUILD` est ajoutée en `PRIVATE`, avec `<NAME>` en majuscules et réduit à un identifiant C (`MySharedLib` → `MYSHAREDLIB_BUILD`) : elle distingue les sources de la target de ses utilisateurs, par exemple pour choisir entre `dllexport` et `dllimport`.
+
+Pour chaque target qui n'est ni `INTERFACE` ni `EXECUTABLE`, l'en-tête public `<NAME>_constante.h` est généré depuis [Template/target_constante.h.in](Template/target_constante.h.in) dans `<build>/<dossier>/<NAME>_autogen/public`. Ce dossier est ajouté en `PUBLIC` (arbre de build uniquement) et l'en-tête est installé avec les en-têtes publics, à plat dans `include` : `#include "<NAME>_constante.h"`. Il définit `<NAME>_EXPORT` (même mise en forme que `<NAME>_BUILD`), à placer devant les symboles exportés :
+
+| Target                       | Windows                                                  | Autres systèmes                    |
+| ---------------------------- | -------------------------------------------------------- | ---------------------------------- |
+| `SHARED`, `MODULE`           | `__declspec(dllexport)` si `<NAME>_BUILD` est définie, sinon `__declspec(dllimport)` | `__attribute__((visibility("default")))` |
+| `STATIC`, `OBJECT`           | vide                                                     | vide                               |
+
 Pour chaque target non `INTERFACE`, les fichiers `<NAME>_info.h` et `<NAME>_info.cpp` sont générés depuis [Template/target_info.h.in](Template/target_info.h.in) et [Template/target_info.cpp.in](Template/target_info.cpp.in) dans `<build>/<dossier>/<NAME>_autogen/include`, le dossier des fichiers `moc` de Qt. Ce dossier est ajouté en `PRIVATE` et le `.cpp` est compilé avec la target. Ils définissent, en C++ récent, des `std::string_view` dans le namespace `<NAME>Info` (`Core` → `CoreInfo`) :
 
 | Symbole        | Contenu                                                                  |
@@ -169,10 +178,9 @@ cmu_add_static_library(
 ```
 
 ```cmake
-# MySharedLib/CMakeLists.txt : bibliothèque partagée (MYSHAREDLIB_BUILD fait exporter les symboles)
+# MySharedLib/CMakeLists.txt : bibliothèque partagée (MySharedLib_constante.h, généré, définit MYSHAREDLIB_EXPORT)
 cmu_add_shared_library(
     NAME MySharedLib
-    COMPILE_DEFINITIONS PRIVATE MYSHAREDLIB_BUILD
 )
 ```
 
@@ -236,8 +244,8 @@ Avec le préfixe par défaut (`<build>/../install`), `cmake --install --config D
 
 ```
 install/
-├── MyStaticLib/Debug/    include/MyStaticLib.h, lib/MyStaticLib.lib
-├── MySharedLib/Debug/    include/MySharedLib.h, lib/MySharedLib.lib, bin/MySharedLib.dll
+├── MyStaticLib/Debug/    include/MyStaticLib.h, include/MyStaticLib_constante.h, lib/MyStaticLib.lib
+├── MySharedLib/Debug/    include/MySharedLib.h, include/MySharedLib_constante.h, lib/MySharedLib.lib, bin/MySharedLib.dll
 ├── MyApp/Debug/          bin/MyApp.exe, bin/MySharedLib.dll
 └── MyQtApp/Debug/        bin/MyQtApp.exe, bin/MySharedLib.dll, bin/Qt6Cored.dll, ...
 ```
