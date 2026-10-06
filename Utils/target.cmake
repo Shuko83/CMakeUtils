@@ -126,6 +126,7 @@ macro(cmu_add_target)
     endif()
 
     # Public <NAME>_constante.h (<NAME>_EXPORT), generated in the build tree and installed with the public headers.
+    set(_ADD_TARGET_AUTOGEN_FILES)
     if(NOT _ADD_TARGET_TYPE MATCHES "^(INTERFACE|EXECUTABLE)$")
         if(_ADD_TARGET_TYPE MATCHES "^(SHARED|MODULE)$")
             set(_ADD_TARGET_DYNAMIC 1)
@@ -136,6 +137,7 @@ macro(cmu_add_target)
         configure_file("${_CMU_TEMPLATE_DIR}/target_constante.h.in"
             "${_ADD_TARGET_PUBLIC_DIR}/${_ADD_TARGET_NAME}_constante.h" @ONLY)
         target_sources(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_PUBLIC_DIR}/${_ADD_TARGET_NAME}_constante.h")
+        list(APPEND _ADD_TARGET_AUTOGEN_FILES "${_ADD_TARGET_PUBLIC_DIR}/${_ADD_TARGET_NAME}_constante.h")
         target_include_directories(${_ADD_TARGET_NAME} PUBLIC "$<BUILD_INTERFACE:${_ADD_TARGET_PUBLIC_DIR}>")
         set_property(GLOBAL PROPERTY CMU_GENERATED_HEADER_${_ADD_TARGET_NAME}
             "${_ADD_TARGET_PUBLIC_DIR}/${_ADD_TARGET_NAME}_constante.h")
@@ -197,7 +199,12 @@ macro(cmu_add_target)
             "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.h" @ONLY)
         configure_file("${_CMU_TEMPLATE_DIR}/target_info.cpp.in"
             "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.cpp" @ONLY)
-        target_sources(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.cpp")
+        target_sources(${_ADD_TARGET_NAME} PRIVATE
+            "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.h"
+            "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.cpp")
+        list(APPEND _ADD_TARGET_AUTOGEN_FILES
+            "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.h"
+            "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.cpp")
         target_include_directories(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_INFO_DIR}")
 
         # Windows version resource: shown in the Details tab of the file properties.
@@ -230,7 +237,16 @@ macro(cmu_add_target)
             configure_file("${_CMU_TEMPLATE_DIR}/target_info.rc.in"
                 "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.rc" @ONLY)
             target_sources(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.rc")
+            list(APPEND _ADD_TARGET_AUTOGEN_FILES "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.rc")
         endif()
+    endif()
+
+    # Visual Studio / Xcode folder holding the generated files, Qt's moc/uic/rcc ones included.
+    if(_ADD_TARGET_AUTOGEN_FILES)
+        source_group(autogen FILES ${_ADD_TARGET_AUTOGEN_FILES})
+    endif()
+    if(NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE")
+        set_property(TARGET ${_ADD_TARGET_NAME} PROPERTY AUTOGEN_SOURCE_GROUP autogen)
     endif()
 
     # Collected for the automatic package (package.cmake); an OBJECT library cannot be exported.
