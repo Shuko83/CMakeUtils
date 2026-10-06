@@ -21,6 +21,11 @@ endif()
 if(NOT DEFINED cmu_organization_domain)
     set(cmu_organization_domain "https://github.com/Shuko83" CACHE STRING "Organization domain written in the info header generated for each target")
 endif()
+if(NOT DEFINED cmu_copyright)
+    string(TIMESTAMP _cmu_year "%Y")
+    set(cmu_copyright "Copyright (C) ${_cmu_year} ${cmu_organization}" CACHE STRING "Copyright written in the info files of each target")
+    unset(_cmu_year)
+endif()
 
 # Modern C++ rules; apply to the targets created after this file is included.
 if(NOT DEFINED CMAKE_CXX_STANDARD)

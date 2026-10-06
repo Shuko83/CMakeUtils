@@ -12,6 +12,7 @@ inline constexpr std::string_view version = "@_ADD_TARGET_INFO_VERSION@";
 inline constexpr std::string_view product = "@_ADD_TARGET_INFO_PRODUCT@";
 inline constexpr std::string_view organization = "@_ADD_TARGET_INFO_ORGANIZATION@";
 inline constexpr std::string_view organizationDomain = "@_ADD_TARGET_INFO_DOMAIN@";
+inline constexpr std::string_view copyright = "@_ADD_TARGET_INFO_COPYRIGHT@";
 inline constexpr std::string_view qtVersion = "@_ADD_TARGET_INFO_QT_VERSION@";
 inline constexpr std::string_view compiler = "@_ADD_TARGET_INFO_COMPILER@";
 

@@ -152,6 +152,7 @@ macro(cmu_add_target)
         set(_ADD_TARGET_INFO_PRODUCT "${PROJECT_NAME}")
         set(_ADD_TARGET_INFO_ORGANIZATION "${cmu_organization}")
         set(_ADD_TARGET_INFO_DOMAIN "${cmu_organization_domain}")
+        set(_ADD_TARGET_INFO_COPYRIGHT "${cmu_copyright}")
 
         # Qt version of the Qt package found by the caller (none when Qt is not used).
         if(DEFINED Qt6_VERSION)
@@ -175,6 +176,38 @@ macro(cmu_add_target)
             "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.cpp" @ONLY)
         target_sources(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.cpp")
         target_include_directories(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_INFO_DIR}")
+
+        # Windows version resource: shown in the Details tab of the file properties.
+        if(WIN32 AND _ADD_TARGET_TYPE MATCHES "^(EXECUTABLE|SHARED|MODULE)$")
+            # FILEVERSION needs four numbers: a missing or non numeric part is 0.
+            set(_ADD_TARGET_INFO_VERSION_NUMBER "0,0,0,0")
+            if("${_ADD_TARGET_INFO_VERSION}" MATCHES "^([0-9]+)(\\.([0-9]+))?(\\.([0-9]+))?")
+                set(_ADD_TARGET_INFO_VERSION_NUMBER "${CMAKE_MATCH_1}")
+                foreach(_ADD_TARGET_PART "${CMAKE_MATCH_3}" "${CMAKE_MATCH_5}")
+                    if("${_ADD_TARGET_PART}" STREQUAL "")
+                        set(_ADD_TARGET_PART 0)
+                    endif()
+                    string(APPEND _ADD_TARGET_INFO_VERSION_NUMBER ",${_ADD_TARGET_PART}")
+                endforeach()
+                string(APPEND _ADD_TARGET_INFO_VERSION_NUMBER ",0")
+            endif()
+
+            if(_ADD_TARGET_TYPE STREQUAL "EXECUTABLE")
+                set(_ADD_TARGET_INFO_FILE_TYPE VFT_APP)
+                set(_ADD_TARGET_INFO_FILENAME "${_ADD_TARGET_NAME}.exe")
+            else()
+                set(_ADD_TARGET_INFO_FILE_TYPE VFT_DLL)
+                if(DEFINED _ADD_TARGET_SHARED_EXTENSION AND NOT _ADD_TARGET_SHARED_EXTENSION STREQUAL "")
+                    set(_ADD_TARGET_INFO_FILENAME "${_ADD_TARGET_NAME}.${_ADD_TARGET_SHARED_EXTENSION}")
+                else()
+                    set(_ADD_TARGET_INFO_FILENAME "${_ADD_TARGET_NAME}.dll")
+                endif()
+            endif()
+
+            configure_file("${_CMU_TEMPLATE_DIR}/target_info.rc.in"
+                "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.rc" @ONLY)
+            target_sources(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.rc")
+        endif()
     endif()
 
     # Collected for the automatic package (package.cmake); an OBJECT library cannot be exported.

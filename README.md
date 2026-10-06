@@ -27,7 +27,7 @@ Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/Utils/ta
 
 ### Dossiers par défaut
 
-`CMakeUtils.cmake` définit six variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
+`CMakeUtils.cmake` définit sept variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
 
 | Variable                 | Défaut    | Rôle                                                    |
 | ------------------------ | --------- | ------------------------------------------------------- |
@@ -37,6 +37,7 @@ Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/Utils/ta
 | `cmu_headers_extension`  | `h`       | Extension(s) des en-têtes (liste, ex. `h;hpp`)          |
 | `cmu_organization`       | `Shuko83` | Organisation écrite dans l'en-tête d'informations de chaque target |
 | `cmu_organization_domain` | `https://github.com/Shuko83` | Domaine de l'organisation (ex. `example.com`), écrit dans le même en-tête |
+| `cmu_copyright`          | `Copyright (C) <année> <cmu_organization>` | Copyright des targets ; l'année est celle de la première configuration |
 
 ```cmake
 set(cmu_public_headers_dir "api")
@@ -122,10 +123,13 @@ Pour chaque target non `INTERFACE`, les fichiers `<NAME>_info.h` et `<NAME>_info
 | `product`      | Nom du projet CMake (`PROJECT_NAME`)                                     |
 | `organization` | `cmu_organization`                                                       |
 | `organizationDomain` | `cmu_organization_domain`                                          |
+| `copyright`    | `cmu_copyright`                                                          |
 | `qtVersion`    | Version de Qt trouvée par `find_package` (`none` sinon)                  |
 | `compiler`     | Compilateur et sa version (ex. `MSVC 19.51.36260.0`)                     |
 | `buildDate`    | Date et heure de compilation du `.cpp` généré (`__DATE__ " " __TIME__`)  |
 | `about`        | Trois lignes : `Qt: ...`, `Compiler: ...`, `Build date: ...`             |
+
+Sous Windows, les exécutables et les bibliothèques `SHARED` ou `MODULE` reçoivent aussi une ressource de version `<NAME>_info.rc` (depuis [Template/target_info.rc.in](Template/target_info.rc.in)), visible dans l'onglet Détails des propriétés du fichier : société (`organization`), description et nom interne (`name`), nom d'origine du fichier, produit (`product`), copyright (`copyright`) et version (`version`). La version numérique est lue depuis `version` en `major.minor.patch.0` (0 si une partie manque ou n'est pas numérique).
 
 Exemple, avec un `CMakeLists.txt` par target (voir [exemple/](exemple/CMakeLists.txt)) :
 
