@@ -121,3 +121,24 @@ macro(cmu_add_target)
     unset(_ADD_TARGET_VARIABLES)
     unset(_ADD_TARGET_VARIABLE)
 endmacro()
+
+# Shortcuts for cmu_add_target: same keywords, TYPE is fixed by the macro.
+macro(cmu_add_executable)
+    cmu_add_target(${ARGN} TYPE EXECUTABLE)
+endmacro()
+
+macro(cmu_add_static_library)
+    cmu_add_target(${ARGN} TYPE STATIC)
+endmacro()
+
+macro(cmu_add_shared_library)
+    cmu_add_target(${ARGN} TYPE SHARED)
+endmacro()
+
+macro(cmu_add_interface_library)
+    cmu_add_target(${ARGN} TYPE INTERFACE)
+endmacro()
+
+macro(cmu_add_object_library)
+    cmu_add_target(${ARGN} TYPE OBJECT)
+endmacro()

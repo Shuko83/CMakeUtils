@@ -138,6 +138,20 @@ cmu_add_target(
 )
 ```
 
+Des raccourcis appellent `cmu_add_target` avec un `TYPE` fixé ; ils acceptent les mêmes mots-clés, sauf `TYPE` :
+
+| Macro                        | Équivaut à `TYPE` |
+| ---------------------------- | ----------------- |
+| `cmu_add_executable`         | `EXECUTABLE`      |
+| `cmu_add_static_library`     | `STATIC`          |
+| `cmu_add_shared_library`     | `SHARED`          |
+| `cmu_add_interface_library`  | `INTERFACE`       |
+| `cmu_add_object_library`     | `OBJECT`          |
+
+```cmake
+cmu_add_static_library(NAME core LINK_LIBRARIES PRIVATE Qt6::Core)
+```
+
 Un projet complet est disponible dans [exemple/](exemple/CMakeLists.txt). Il dépend de Qt 6 (CMake 3.16 minimum), trouvé grâce à la variable d'environnement `QTDIR` (voir [qt.cmake](#qtcmake)) ; sinon, indiquer son emplacement avec `-DCMAKE_PREFIX_PATH`, par exemple `cmake -S exemple -B build -DCMAKE_PREFIX_PATH=C:/Qt/6.11.2/msvc2022_64`.
 
 Remarques :
