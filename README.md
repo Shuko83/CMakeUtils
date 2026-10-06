@@ -131,7 +131,7 @@ Pour chaque target non `INTERFACE`, les fichiers `<NAME>_info.h` et `<NAME>_info
 | `buildDate`    | Date et heure de compilation du `.cpp` généré (`__DATE__ " " __TIME__`)  |
 | `about`        | Trois lignes : `Qt: ...`, `Compiler: ...`, `Build date: ...`             |
 
-Dans le projet Visual Studio, ces fichiers générés sont regroupés dans le dossier `autogen` (`source_group`), avec les fichiers `moc`, `uic` et `rcc` de Qt (`AUTOGEN_SOURCE_GROUP`).
+Dans le projet Visual Studio, ces fichiers générés sont regroupés dans le dossier `autogen` (`source_group`), et les fichiers générés par Qt dans ses sous-dossiers `autogen\moc` (`mocs_compilation*.cpp`), `autogen\rcc` (`qrc_*.cpp`) et `autogen\uic` (`ui_*.h`).
 
 Sous Windows, les exécutables et les bibliothèques `SHARED` ou `MODULE` reçoivent aussi une ressource de version `<NAME>_info.rc` (depuis [Template/target_info.rc.in](Template/target_info.rc.in)), visible dans l'onglet Détails des propriétés du fichier : société (`organization`), description et nom interne (`name`), nom d'origine du fichier, produit (`product`), copyright (`copyright`) et version (`version`). La version numérique est lue depuis `version` en `major.minor.patch.0` (0 si une partie manque ou n'est pas numérique).
 

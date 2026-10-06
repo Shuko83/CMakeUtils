@@ -236,12 +236,15 @@ macro(cmu_add_target)
         endif()
     endif()
 
-    # Visual Studio / Xcode folder holding the generated files, Qt's moc/uic/rcc ones included.
+    # Visual Studio / Xcode folder holding the generated files, with a subfolder per Qt generator.
     if(_ADD_TARGET_AUTOGEN_FILES)
         source_group(autogen FILES ${_ADD_TARGET_AUTOGEN_FILES})
     endif()
     if(NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE")
-        set_property(TARGET ${_ADD_TARGET_NAME} PROPERTY AUTOGEN_SOURCE_GROUP autogen)
+        # The files only exist at generate time and are named per configuration: match them by name.
+        source_group("autogen\\moc" REGULAR_EXPRESSION "_autogen/mocs_compilation[^/]*\\.cpp$")
+        source_group("autogen\\rcc" REGULAR_EXPRESSION "_autogen/[^/]+/qrc_[^/]*\\.cpp$")
+        source_group("autogen\\uic" REGULAR_EXPRESSION "_autogen/include[^/]*/(.*/)?ui_[^/]*\\.h$")
     endif()
 
     # Collected for the automatic package (package.cmake); an OBJECT library cannot be exported.
