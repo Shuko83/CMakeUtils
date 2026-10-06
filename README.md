@@ -27,7 +27,7 @@ Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/Utils/ta
 
 ### Dossiers par défaut
 
-`CMakeUtils.cmake` définit cinq variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
+`CMakeUtils.cmake` définit six variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
 
 | Variable                 | Défaut    | Rôle                                                    |
 | ------------------------ | --------- | ------------------------------------------------------- |
@@ -35,6 +35,8 @@ Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/Utils/ta
 | `cmu_sources_dir`        | `src`     | Dossier des sources et en-têtes privés                  |
 | `cmu_sources_extension`  | `cpp`     | Extension(s) des sources (liste, ex. `cpp;cc`)          |
 | `cmu_headers_extension`  | `h`       | Extension(s) des en-têtes (liste, ex. `h;hpp`)          |
+| `cmu_organization`       | `Shuko83` | Organisation écrite dans l'en-tête d'informations de chaque target |
+| `cmu_organization_domain` | `https://github.com/Shuko83` | Domaine de l'organisation (ex. `example.com`), écrit dans le même en-tête |
 
 ```cmake
 set(cmu_public_headers_dir "api")
@@ -110,6 +112,20 @@ La target est remplie automatiquement (recherche récursive, sans doublons avec 
 La recherche utilise `CONFIGURE_DEPENDS` : un fichier ajouté ou supprimé est pris en compte à la compilation suivante. Elle prend tout le dossier : une seule target par couple `cmu_sources_dir` / `cmu_public_headers_dir`, soit un `CMakeLists.txt` par target.
 
 Si les dossiers `cmu_public_headers_dir` et `cmu_sources_dir` existent, ils sont ajoutés automatiquement avant les `INCLUDE_DIRECTORIES` : `cmu_public_headers_dir` en `PUBLIC` (`INTERFACE` pour une target `INTERFACE`) et `cmu_sources_dir` en `PRIVATE` (ignoré pour une target `INTERFACE`).
+
+Pour chaque target non `INTERFACE`, les fichiers `<NAME>_info.h` et `<NAME>_info.cpp` sont générés depuis [Template/target_info.h.in](Template/target_info.h.in) et [Template/target_info.cpp.in](Template/target_info.cpp.in) dans `<build>/<dossier>/<NAME>_autogen/include`, le dossier des fichiers `moc` de Qt. Ce dossier est ajouté en `PRIVATE` et le `.cpp` est compilé avec la target. Ils définissent, en C++ récent, des `std::string_view` dans le namespace `<NAME>Info` (`Core` → `CoreInfo`) :
+
+| Symbole        | Contenu                                                                  |
+| -------------- | ------------------------------------------------------------------------ |
+| `name`         | Nom de la target                                                         |
+| `version`      | Version (`VERSION`)                                                      |
+| `product`      | Nom du projet CMake (`PROJECT_NAME`)                                     |
+| `organization` | `cmu_organization`                                                       |
+| `organizationDomain` | `cmu_organization_domain`                                          |
+| `qtVersion`    | Version de Qt trouvée par `find_package` (`none` sinon)                  |
+| `compiler`     | Compilateur et sa version (ex. `MSVC 19.51.36260.0`)                     |
+| `buildDate`    | Date et heure de compilation du `.cpp` généré (`__DATE__ " " __TIME__`)  |
+| `about`        | Trois lignes : `Qt: ...`, `Compiler: ...`, `Build date: ...`             |
 
 Exemple, avec un `CMakeLists.txt` par target (voir [exemple/](exemple/CMakeLists.txt)) :
 

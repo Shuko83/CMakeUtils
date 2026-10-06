@@ -15,6 +15,12 @@ endif()
 if(NOT DEFINED cmu_headers_extension)
     set(cmu_headers_extension "h" CACHE STRING "Header file extension(s) globbed in cmu_public_headers_dir")
 endif()
+if(NOT DEFINED cmu_organization)
+    set(cmu_organization "Shuko83" CACHE STRING "Organization written in the info header generated for each target")
+endif()
+if(NOT DEFINED cmu_organization_domain)
+    set(cmu_organization_domain "https://github.com/Shuko83" CACHE STRING "Organization domain written in the info header generated for each target")
+endif()
 
 # Modern C++ rules; apply to the targets created after this file is included.
 if(NOT DEFINED CMAKE_CXX_STANDARD)

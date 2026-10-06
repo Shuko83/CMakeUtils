@@ -1,5 +1,7 @@
 include_guard(GLOBAL)
 
+set(_CMU_TEMPLATE_DIR "${CMAKE_CURRENT_LIST_DIR}/../Template")
+
 # Creates a target; each keyword is forwarded to the matching target_*() command (see README.md).
 macro(cmu_add_target)
     # TYPE takes a value, not a flag, so INTERFACE stays usable as a scope keyword in the lists.
@@ -136,6 +138,10 @@ macro(cmu_add_target)
         target_link_options(${_ADD_TARGET_NAME} ${_ADD_TARGET_LINK_OPTIONS})
     endif()
 
+    # Info files <NAME>_info.h/.cpp, generated where Qt puts its moc files (<target>_autogen/include).
+    if(NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE")
+        string(MAKE_C_IDENTIFIER "${_ADD_TARGET_NAME}" _ADD_TARGET_IDENT)
+
         if(DEFINED _ADD_TARGET_VERSION)
             set(_ADD_TARGET_INFO_VERSION "${_ADD_TARGET_VERSION}")
         elseif(PROJECT_VERSION)
@@ -143,6 +149,34 @@ macro(cmu_add_target)
         else()
             set(_ADD_TARGET_INFO_VERSION "0.0.0")
         endif()
+        set(_ADD_TARGET_INFO_PRODUCT "${PROJECT_NAME}")
+        set(_ADD_TARGET_INFO_ORGANIZATION "${cmu_organization}")
+        set(_ADD_TARGET_INFO_DOMAIN "${cmu_organization_domain}")
+
+        # Qt version of the Qt package found by the caller (none when Qt is not used).
+        if(DEFINED Qt6_VERSION)
+            set(_ADD_TARGET_INFO_QT_VERSION "${Qt6_VERSION}")
+        elseif(DEFINED Qt5_VERSION)
+            set(_ADD_TARGET_INFO_QT_VERSION "${Qt5_VERSION}")
+        else()
+            set(_ADD_TARGET_INFO_QT_VERSION "none")
+        endif()
+
+        if(CMAKE_CXX_COMPILER_ID)
+            set(_ADD_TARGET_INFO_COMPILER "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+        else()
+            set(_ADD_TARGET_INFO_COMPILER "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
+        endif()
+
+        set(_ADD_TARGET_INFO_DIR "${CMAKE_CURRENT_BINARY_DIR}/${_ADD_TARGET_NAME}_autogen/include")
+        configure_file("${_CMU_TEMPLATE_DIR}/target_info.h.in"
+            "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.h" @ONLY)
+        configure_file("${_CMU_TEMPLATE_DIR}/target_info.cpp.in"
+            "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.cpp" @ONLY)
+        target_sources(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.cpp")
+        target_include_directories(${_ADD_TARGET_NAME} PRIVATE "${_ADD_TARGET_INFO_DIR}")
+    endif()
+
     # Collected for the automatic package (package.cmake); an OBJECT library cannot be exported.
     if(NOT _ADD_TARGET_TYPE STREQUAL "OBJECT")
         set_property(GLOBAL APPEND PROPERTY CMU_PACKAGE_TARGETS ${_ADD_TARGET_NAME})
