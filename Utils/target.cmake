@@ -88,7 +88,7 @@ macro(cmu_add_target)
 
     # The extension is accepted with or without its leading dot; SUFFIX needs the dot.
     if(DEFINED _ADD_TARGET_SHARED_EXTENSION)
-        if(_ADD_TARGET_TYPE STREQUAL "SHARED")
+        if(_ADD_TARGET_TYPE MATCHES "^(SHARED|MODULE)$")
             string(REGEX REPLACE "^\\." "" _ADD_TARGET_SHARED_EXTENSION "${_ADD_TARGET_SHARED_EXTENSION}")
             if(_ADD_TARGET_SHARED_EXTENSION STREQUAL "")
                 set_target_properties(${_ADD_TARGET_NAME} PROPERTIES SUFFIX "")

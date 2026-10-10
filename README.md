@@ -90,7 +90,7 @@ cmu_add_target(
 | --------------------- | ----------------------------------------------------------------------------- |
 | `NAME`                | Nom de la target (obligatoire)                                                |
 | `TYPE`                | `EXECUTABLE` → `add_executable()`, les autres → `add_library()` (obligatoire) |
-| `SHARED_EXTENSION`    | Extension du fichier d'une bibliothèque `SHARED`, avec ou sans point (`plugin`, `.plugin`) ; sans effet, avec un avertissement, pour les autres types |
+| `SHARED_EXTENSION`    | Extension du fichier d'une bibliothèque `SHARED` ou `MODULE`, avec ou sans point (`plugin`, `.plugin`) ; sans effet, avec un avertissement, pour les autres types |
 | `NAMESPACE`           | Crée l'alias `<namespace>::<NAME>` de la target, avec ou sans `::` final (`namespace` ou `namespace::`) |
 | `VERSION`             | Version de la target écrite dans l'en-tête d'informations (défaut : `PROJECT_VERSION`, sinon `0.0.0`) |
 | `SOURCES`             | Fichiers sources supplémentaires, relatifs à `cmu_sources_dir`                |
