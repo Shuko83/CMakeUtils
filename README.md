@@ -232,6 +232,7 @@ Sans rien changer au `CMakeLists.txt`, toutes les targets créées avec `cmu_add
 | `cmu_package`      | `ON`              | `OFF` désactive l'installation automatique            |
 | `cmu_package_dir`  | `<build>/package` | Dossier où le résultat est copié après la compilation |
 | `cmu_install_mode` | `TARGET`          | `TARGET` ou `PACKAGE`                                 |
+| `cmu_plugins_dir`  | `plugins`         | Dossier des bibliothèques `MODULE`, relatif à celui des exécutables (voir [Emplacement des plugins](#emplacement-des-plugins)) |
 
 #### Mode `TARGET`
 
@@ -246,7 +247,7 @@ install/
 ```
 
 - Une bibliothèque installe ses binaires et ses en-têtes publics (`cmu_public_headers_dir`).
-- Un exécutable est prêt à être lancé : les bibliothèques partagées du projet dont il dépend sont copiées dans son `bin/`, et `windeployqt` y déploie Qt s'il en dépend (voir [qt.cmake](#qtcmake)).
+- Un exécutable est prêt à être lancé : les bibliothèques partagées du projet dont il dépend sont copiées dans son `bin/`, les bibliothèques `MODULE` dans son `bin/plugins/` (voir [Emplacement des plugins](#emplacement-des-plugins)), et `windeployqt` y déploie Qt s'il en dépend (voir [qt.cmake](#qtcmake)).
 - Les configurations coexistent (`Debug`, `Release`) sous chaque target. Un préfixe choisi avec `-DCMAKE_INSTALL_PREFIX=...` ou `cmake --install --prefix ...` garde la même disposition `<prefix>/<target>/<config>`.
 - `cmu_install_targets(TARGETS <target>...)` fait la même chose pour une liste choisie et remplace l'installation automatique.
 
@@ -260,7 +261,7 @@ install/
 ```
 
 - `<target>Targets.cmake` déclare la target importée `<projet>::<target>` et couvre toutes les configurations installées (`Debug`, `Release`), chacune pointant vers son `<target>/<config>/`.
-- `<target>Config.cmake` reprend les `find_package()` dont la target a besoin (par exemple Qt) et charge les composants dont elle dépend (`MyQtApp` charge `MyStaticLib` et `MySharedLib`).
+- `<target>Config.cmake` reprend les `find_package()` dont la target a besoin (par exemple Qt) et charge les composants dont elle dépend (`MyQtApp` charge `MyStaticLib` et `MySharedLib`), qu'ils soient liés par leur nom ou par leur alias `NAMESPACE`.
 - `exempleConfig.cmake` charge les composants demandés, ou tous s'il n'y en a pas, et renseigne `exemple_<composant>_FOUND` ; un composant `REQUIRED` inconnu fait échouer `find_package`.
 
 ```cmake
@@ -286,6 +287,33 @@ Une target spéciale `cmu_package`, incluse dans `ALL`, copie le paquet après l
 - Les dépendances sont déduites : un appel à `find_package()` est repris dans `Config.cmake` si une target du paquet est liée à une target `<Paquet>::...` (par exemple `Qt6::Core` pour `find_package(Qt6 REQUIRED COMPONENTS Core)`). Seuls les appels faits après l'inclusion de `CMakeUtils.cmake` sont vus ; si `find_package` est déjà redéfini (vcpkg par exemple), la déduction est désactivée.
 - Nécessite CMake 3.19 (`cmake_language(DEFER)`) ; sinon seul `cmu_add_package` est disponible.
 - Un appel explicite à `cmu_add_package` remplace le paquet automatique.
+
+#### Emplacement des plugins
+
+Une bibliothèque `MODULE` est chargée à l'exécution : aucun exécutable n'y est lié, mais chacun la cherche à côté de lui. Elle est donc installée dans le dossier `cmu_plugins_dir` (`plugins` par défaut), relatif à celui des exécutables :
+
+| `cmu_install_mode` | Emplacement d'une bibliothèque `MODULE`                                                            |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| `TARGET`           | `<prefix>/<exécutable>/<config>/bin/plugins/` pour chaque exécutable, en plus de son propre dossier `<prefix>/<target>/<config>/lib/` |
+| `PACKAGE`          | `<prefix>/bin/plugins/`, à la place de `<prefix>/lib/`                                             |
+
+```cmake
+# Pour tout le projet : avant l'inclusion, ou cmake -Dcmu_plugins_dir=modules
+set(cmu_plugins_dir "modules")
+include(chemin/vers/CMakeUtils/CMakeUtils.cmake)
+```
+
+```cmake
+# Pour une seule target : juste avant son appel. Vide : elle n'est pas placée à côté des exécutables
+set(cmu_plugins_dir "")
+cmu_add_target(NAME Outil TYPE MODULE)
+```
+
+- La variable est lue à chaque appel de `cmu_add_target` : une valeur définie dans un `CMakeLists.txt` vaut pour les targets `MODULE` créées ensuite dans ce dossier et ses sous-dossiers.
+- En mode `TARGET`, chaque exécutable installé reçoit toutes les bibliothèques `MODULE` installées avec lui, ainsi que les bibliothèques partagées du projet dont elles dépendent (dans son `bin/`).
+- Un chemin absolu arrête la configuration avec un message d'erreur.
+- Seule l'installation est concernée. Dans l'arbre de build, une bibliothèque `MODULE` reste dans son dossier de build : la placer à côté des exécutables avec la propriété `LIBRARY_OUTPUT_DIRECTORY`.
+- Les modules de Qt dont seule une bibliothèque `MODULE` dépend ne sont pas déployés : `windeployqt` n'examine que l'exécutable.
 
 #### Dossier d'installation par défaut
 

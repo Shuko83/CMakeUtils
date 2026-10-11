@@ -14,6 +14,9 @@ endif()
 if(NOT DEFINED cmu_package_dir)
     set(cmu_package_dir "${CMAKE_BINARY_DIR}/package" CACHE PATH "Where the automatic package is staged")
 endif()
+if(NOT DEFINED cmu_plugins_dir)
+    set(cmu_plugins_dir "plugins" CACHE STRING "Where the MODULE libraries are installed, relative to the directory of the executables (empty: not next to them)")
+endif()
 if(NOT DEFINED cmu_install_mode)
     set(cmu_install_mode TARGET CACHE STRING "TARGET: <target>/<config> per target; PACKAGE: one prefix with Config files")
     set_property(CACHE cmu_install_mode PROPERTY STRINGS TARGET PACKAGE)
@@ -68,9 +71,9 @@ function(_cmu_install_headers directory destination)
     endif()
 endfunction()
 
-# Sets <result> to the SHARED library targets of this project reached from <target>.
-function(_cmu_shared_dependencies target result)
-    set(_pending ${target})
+# Sets <result> to the SHARED library targets of this project reached from <targets>.
+function(_cmu_shared_dependencies targets result)
+    set(_pending ${targets})
     set(_visited)
     set(_shared)
     while(_pending)
@@ -130,7 +133,7 @@ function(_cmu_deduce_dependencies targets result)
 endfunction()
 
 # Installs each target on its own in <prefix>/<target>/<config>/{bin,lib,include}, ready to use:
-# an executable also gets the shared libraries of the project (and Qt) it needs.
+# an executable also gets the shared libraries of the project (and Qt) it needs, and the plugins in cmu_plugins_dir.
 # Every target is a component of the package <NAME> (find_package(<NAME> COMPONENTS <target>)):
 #   <prefix>/<target>/cmake/   <target>Config.cmake and <target>Targets.cmake
 #   <prefix>/                  <NAME>Config.cmake and <NAME>ConfigVersion.cmake
@@ -161,6 +164,15 @@ function(cmu_install_targets)
         set(ARG_NAMESPACE "${ARG_NAME}::")
     endif()
 
+    # Nothing tells which executable loads which plugin: every executable gets them all.
+    set(_plugins)
+    foreach(_target IN LISTS ARG_TARGETS)
+        get_property(_plugins_dir GLOBAL PROPERTY CMU_PLUGINS_DIR_${_target})
+        if(NOT "${_plugins_dir}" STREQUAL "")
+            list(APPEND _plugins ${_target})
+        endif()
+    endforeach()
+
     set(_component_cmake "cmake")
     foreach(_target IN LISTS ARG_TARGETS)
         set(_root "${_target}/$<CONFIG>")
@@ -174,7 +186,13 @@ function(cmu_install_targets)
 
         get_target_property(_type ${_target} TYPE)
         if(_type STREQUAL "EXECUTABLE")
-            _cmu_shared_dependencies(${_target} _shared)
+            foreach(_plugin IN LISTS _plugins)
+                get_property(_plugins_dir GLOBAL PROPERTY CMU_PLUGINS_DIR_${_plugin})
+                install(FILES "$<TARGET_FILE:${_plugin}>"
+                    DESTINATION ${_root}/${CMAKE_INSTALL_BINDIR}/${_plugins_dir} COMPONENT ${_CMU_PACKAGE_COMPONENT})
+            endforeach()
+            # The plugins come with the shared libraries they link, which the executable may not link itself.
+            _cmu_shared_dependencies("${_target};${_plugins}" _shared)
             foreach(_dependency IN LISTS _shared)
                 install(FILES "$<TARGET_FILE:${_dependency}>"
                     DESTINATION ${_root}/${CMAKE_INSTALL_BINDIR} COMPONENT ${_CMU_PACKAGE_COMPONENT})
@@ -213,6 +231,13 @@ function(cmu_install_targets)
         foreach(_library IN LISTS _link_libraries _interface_libraries)
             if(_library MATCHES "^\\$<LINK_ONLY:([^>]+)>$")
                 set(_library "${CMAKE_MATCH_1}")
+            endif()
+            # Linked by its alias (NAMESPACE): the components are named after the targets themselves.
+            if(TARGET "${_library}")
+                get_target_property(_aliased "${_library}" ALIASED_TARGET)
+                if(_aliased)
+                    set(_library "${_aliased}")
+                endif()
             endif()
             list(FIND ARG_TARGETS "${_library}" _index)
             if(NOT _index EQUAL -1 AND NOT _library STREQUAL _target)
@@ -306,12 +331,20 @@ function(cmu_add_package)
     if(DEFINED ARG_TARGETS)
         string(APPEND CMU_PACKAGE_TARGETS "include(\"\${CMAKE_CURRENT_LIST_DIR}/${ARG_NAME}Targets.cmake\")")
 
-        install(TARGETS ${ARG_TARGETS}
-            EXPORT ${ARG_NAME}Targets
-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT ${_CMU_PACKAGE_COMPONENT}
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT ${_CMU_PACKAGE_COMPONENT}
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT ${_CMU_PACKAGE_COMPONENT}
-            INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+        # One call per target: a plugin goes in cmu_plugins_dir next to the executables, not with the other libraries.
+        foreach(_target IN LISTS ARG_TARGETS)
+            set(_library_dir "${CMAKE_INSTALL_LIBDIR}")
+            get_property(_plugins_dir GLOBAL PROPERTY CMU_PLUGINS_DIR_${_target})
+            if(NOT "${_plugins_dir}" STREQUAL "")
+                set(_library_dir "${CMAKE_INSTALL_BINDIR}/${_plugins_dir}")
+            endif()
+            install(TARGETS ${_target}
+                EXPORT ${ARG_NAME}Targets
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT ${_CMU_PACKAGE_COMPONENT}
+                LIBRARY DESTINATION ${_library_dir} COMPONENT ${_CMU_PACKAGE_COMPONENT}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT ${_CMU_PACKAGE_COMPONENT}
+                INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+        endforeach()
         # Qt DLLs are not installed by install(TARGETS): deploy them next to each installed Qt executable.
         if(COMMAND _cmu_qt_install_deploy)
             foreach(_target IN LISTS ARG_TARGETS)

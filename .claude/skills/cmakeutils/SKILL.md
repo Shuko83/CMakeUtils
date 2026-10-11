@@ -64,7 +64,7 @@ L'ordre compte :
 | `cmu_add_shared_library`             | bibliothèque partagée                                     |
 | `cmu_add_interface_library`          | bibliothèque d'en-têtes seuls                             |
 | `cmu_add_object_library`             | bibliothèque objet (ni installée ni exportée)             |
-| `cmu_add_target(... TYPE MODULE)`    | module chargé à l'exécution (pas de raccourci)            |
+| `cmu_add_target(... TYPE MODULE)`    | plugin chargé à l'exécution (pas de raccourci)            |
 
 ```cmake
 cmu_add_shared_library(
@@ -77,9 +77,9 @@ cmu_add_shared_library(
 )
 ```
 
-`INCLUDE_DIRECTORIES`, `COMPILE_DEFINITIONS`, `COMPILE_OPTIONS`, `COMPILE_FEATURES`, `LINK_LIBRARIES` et `LINK_OPTIONS` sont passés tels quels à la commande `target_*` de même nom : la portée s'écrit comme pour elle et plusieurs portées peuvent se suivre. `SHARED_EXTENSION plugin` renomme une bibliothèque partagée en `Core.plugin`.
+`INCLUDE_DIRECTORIES`, `COMPILE_DEFINITIONS`, `COMPILE_OPTIONS`, `COMPILE_FEATURES`, `LINK_LIBRARIES` et `LINK_OPTIONS` sont passés tels quels à la commande `target_*` de même nom : la portée s'écrit comme pour elle et plusieurs portées peuvent se suivre. `SHARED_EXTENSION plugin` renomme une bibliothèque partagée en `Core.plugin`. Une target du projet se lie par son nom (`Core`) ou par son alias `NAMESPACE` (`MonProjet::Core`), au choix.
 
-Les variables se définissent avant `include(CMakeUtils.cmake)` ou avec `-D`. Les quatre premières sont relues à chaque appel `cmu_add_*` : un `set()` juste avant l'appel change la disposition de ce dossier seulement.
+Les variables se définissent avant `include(CMakeUtils.cmake)` ou avec `-D`. Les cinq premières sont relues à chaque appel `cmu_add_*` : un `set()` juste avant l'appel change la disposition de ce dossier seulement.
 
 | Variable                                                   | Défaut            | Rôle                                                  |
 | ---------------------------------------------------------- | ----------------- | ----------------------------------------------------- |
@@ -87,6 +87,7 @@ Les variables se définissent avant `include(CMakeUtils.cmake)` ou avec `-D`. Le
 | `cmu_public_headers_dir`                                   | `include`         | en-têtes publics                                      |
 | `cmu_sources_extension`                                    | `cpp`             | extensions prises dans `cmu_sources_dir` (liste)      |
 | `cmu_headers_extension`                                    | `h`               | extensions prises dans `cmu_public_headers_dir` (liste) |
+| `cmu_plugins_dir`                                          | `plugins`         | où les bibliothèques `MODULE` sont installées, relatif au dossier des exécutables ; vide : pas à côté d'eux |
 | `cmu_organization`, `cmu_organization_domain`, `cmu_copyright` | ceux de l'auteur  | écrits dans les fichiers d'informations ; à redéfinir pour un autre éditeur |
 | `cmu_package`                                              | `ON`              | installation et copie automatiques                    |
 | `cmu_install_mode`                                         | `TARGET`          | `TARGET` : un dossier par target ; `PACKAGE` : un seul préfixe |
@@ -107,6 +108,7 @@ Les variables se définissent avant `include(CMakeUtils.cmake)` ou avec `-D`. Le
 | Standard C++                        | le plus récent du compilateur, sans extensions                                      | `CMAKE_CXX_STANDARD`, sauf pour figer une version            |
 | Installation et `find_package`      | règles d'installation, export et fichiers `Config.cmake` pour chaque target         | `install(...)`, `export(...)`, `configure_package_config_file` |
 | Trouver et déployer Qt              | `QTDIR` ajouté au chemin de recherche, `windeployqt` après compilation et installation | chemin de Qt en dur, commande de déploiement                 |
+| Installer les plugins               | une bibliothèque `MODULE` est installée dans `cmu_plugins_dir` (`plugins/`) à côté de chaque exécutable | `install(...)` du plugin                                     |
 
 ## Pièges
 
@@ -122,19 +124,19 @@ Tous observés en pratique ; l'erreur citée est celle que CMake affiche.
 
 5. **Dossier d'inclusion `PUBLIC` supplémentaire.** Un chemin de l'arbre de sources ne peut pas être exporté : l'envelopper dans `$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dossier>`. Le plus simple reste de mettre les en-têtes publics dans `include/`.
 
-6. **Lier les targets du projet par leur nom, pas par leur alias.** `LINK_LIBRARIES PUBLIC Core`, non `MonProjet::Core`. En mode `TARGET`, le `Config.cmake` d'un composant ne reconnaît ses voisins que par leur nom : avec l'alias, `find_package(MonProjet COMPONENTS App)` échoue chez l'utilisateur du paquet (`imported targets are referenced, but are missing`). L'alias `NAMESPACE` sert aux projets qui englobent celui-ci.
+6. **`\` dans un argument.** Les `cmu_add_*` sont des macros et réévaluent leurs arguments : `Invalid character escape`. Toujours `/` dans les chemins.
 
-7. **`\` dans un argument.** Les `cmu_add_*` sont des macros et réévaluent leurs arguments : `Invalid character escape`. Toujours `/` dans les chemins.
+7. **`<NAME>_info.h` est privé.** Il n'est visible que des sources de sa target, n'est pas installé et demande C++17. Pour exposer la version d'une bibliothèque, écrire une fonction publique qui renvoie `CoreInfo::version`.
 
-8. **`<NAME>_info.h` est privé.** Il n'est visible que des sources de sa target, n'est pas installé et demande C++17. Pour exposer la version d'une bibliothèque, écrire une fonction publique qui renvoie `CoreInfo::version`.
+8. **Tout ce qui est créé par `cmu_add_*` est installé**, exécutables de test compris. Créer ceux-ci avec `add_executable` classique, ou choisir la liste avec `cmu_install_targets(TARGETS ...)` à la racine après les `add_subdirectory`. Cet appel remplace l'installation automatique, copie dans `<build>/package` comprise : il ne reste que `cmake --install`.
 
-9. **Tout ce qui est créé par `cmu_add_*` est installé**, exécutables de test compris. Créer ceux-ci avec `add_executable` classique, ou choisir la liste avec `cmu_install_targets(TARGETS ...)` à la racine après les `add_subdirectory`. Cet appel remplace l'installation automatique, copie dans `<build>/package` comprise : il ne reste que `cmake --install`.
+9. **Qt : `AUTOMOC`, `AUTOUIC` et `AUTORCC` ne sont pas activés.** Ajouter `set(CMAKE_AUTOMOC ON)` (et les autres au besoin) à la racine, avant les `add_subdirectory`. Un `.qrc` se nomme dans `SOURCES`.
 
-10. **Qt : `AUTOMOC`, `AUTOUIC` et `AUTORCC` ne sont pas activés.** Ajouter `set(CMAKE_AUTOMOC ON)` (et les autres au besoin) à la racine, avant les `add_subdirectory`. Un `.qrc` se nomme dans `SOURCES`.
+10. **Le standard C++ suit le compilateur** (C++23 avec MSVC récent). Si du code ne compile plus après une mise à jour de l'outil, figer : `set(CMAKE_CXX_STANDARD 20)` avant l'inclusion.
 
-11. **Le standard C++ suit le compilateur** (C++23 avec MSVC récent). Si du code ne compile plus après une mise à jour de l'outil, figer : `set(CMAKE_CXX_STANDARD 20)` avant l'inclusion.
+11. **Les réglages `cmu_*` sont en cache.** Changer `cmu_install_mode` demande un `-D` explicite ou un dossier de build neuf ; il en va de même du préfixe d'installation par défaut (`<build>/../install`), fixé à la première configuration.
 
-12. **Les réglages `cmu_*` sont en cache.** Changer `cmu_install_mode` demande un `-D` explicite ou un dossier de build neuf ; il en va de même du préfixe d'installation par défaut (`<build>/../install`), fixé à la première configuration.
+12. **`cmu_plugins_dir` ne règle que l'installation.** Dans l'arbre de build, une bibliothèque `MODULE` reste dans son dossier de build et l'exécutable ne la trouve pas : la placer avec `LIBRARY_OUTPUT_DIRECTORY`. Un générateur multi-configuration ajoute `<config>` à la fin du chemin (`bin/plugins/Debug`), sauf s'il contient une expression génératrice : écrire `bin/$<CONFIG>/plugins`. Un plugin qui ne doit pas suivre les exécutables : `set(cmu_plugins_dir "")` juste avant son appel.
 
 ## Recettes
 
@@ -217,6 +219,6 @@ cmake --build build --config Debug
 Puis regarder le résultat plutôt que de le supposer :
 
 - la configuration se termine sans avertissement `CMakeUtils:` ni `CMake Warning` ;
-- `build/package/` contient chaque target attendue, avec ses en-têtes publics et, pour un exécutable, les DLL dont il dépend ;
+- `build/package/` contient chaque target attendue, avec ses en-têtes publics et, pour un exécutable, les DLL dont il dépend et les plugins dans `bin/plugins/` ;
 - l'exécutable se lance depuis `build/package/<target>/<config>/bin/` (mode `TARGET`), ce qui prouve que le déploiement est complet ;
 - pour un paquet destiné à d'autres, un petit projet qui fait `find_package` sur `build/package` est le seul vrai test.

@@ -32,7 +32,7 @@ Ce sont les points où une modification anodine casse quelque chose plus loin.
 - **`cmu_add_target` est une macro.** Elle s'exécute dans la portée de l'appelant : toute variable temporaire prend le préfixe `_ADD_TARGET_`, que le nettoyage final supprime par expression régulière. Un `return()` y ferait quitter le `CMakeLists.txt` appelant. Les arguments sont réévalués, d'où l'interdiction du `\`.
 - **Les modèles lisent ces variables.** `configure_file(... @ONLY)` remplace `@_ADD_TARGET_X@` : une variable utilisée par un modèle doit être définie avant l'appel, et renommer l'une impose de renommer l'autre.
 - **`CMAKE_CURRENT_LIST_DIR` dans une fonction est celui de l'appelant.** Les chemins des modèles sont donc capturés à l'inclusion du module (`_CMU_TEMPLATE_DIR`, `_CMU_PACKAGE_CONFIG_TEMPLATE`).
-- **État partagé entre modules : propriétés globales.** `CMU_PACKAGE_TARGETS` et `CMU_PACKAGE_HEADERS` (remplies par `cmu_add_target`, lues par l'installation automatique), `CMU_HEADERS_<target>`, `CMU_GENERATED_HEADER_<target>` (en-tête public généré, à installer), `CMU_PACKAGE_DONE` (un appel explicite a remplacé l'automatique), `CMU_FIND_PACKAGE_CALLS`.
+- **État partagé entre modules : propriétés globales.** `CMU_PACKAGE_TARGETS` et `CMU_PACKAGE_HEADERS` (remplies par `cmu_add_target`, lues par l'installation automatique), `CMU_HEADERS_<target>`, `CMU_GENERATED_HEADER_<target>` (en-tête public généré, à installer), `CMU_PLUGINS_DIR_<target>` (valeur de `cmu_plugins_dir` à la création d'une target `MODULE`, absente si elle est vide), `CMU_PACKAGE_DONE` (un appel explicite a remplacé l'automatique), `CMU_FIND_PACKAGE_CALLS`.
 - **Appels différés.** `cmake_language(DEFER)` lance `_cmu_package_finalize` à la fin du dossier qui a inclus CMakeUtils, et `_cmu_qt_deploy` à la fin du dossier de chaque exécutable, quand ses dépendances sont déclarées. Le nom de la target y est figé par `cmake_language(EVAL CODE ...)`, car les arguments différés sont évalués après le nettoyage de la macro.
 - **`find_package` est redéfini** pour mémoriser les appels ; `_find_package` est l'original. Désactivé si un autre outil l'a déjà redéfini (vcpkg), sinon la récursion est infinie.
 - **Toute règle `install()` porte `COMPONENT ${_CMU_PACKAGE_COMPONENT}`.** La target `cmu_package` copie le résultat avec `cmake --install --component cmu_package` : une règle sans ce composant est installée par `cmake --install` mais absente de `<build>/package`.
@@ -73,12 +73,8 @@ cmake --install build --config Debug
 
 À contrôler : aucune alerte à la configuration, la sortie de `MyQtApp` (valeurs des bibliothèques et bloc `about`), et les arborescences `build/package` et `install/`, qui doivent correspondre à celles du README.
 
-`exemple/` ne couvre que le chemin nominal du mode `TARGET`. Selon la modification :
+`exemple/` ne couvre que le chemin nominal du mode `TARGET`, sans bibliothèque `MODULE`. Selon la modification :
 
 - mode `PACKAGE` : un second dossier de build (`cmake -S exemple -B build-pkg -Dcmu_install_mode=PACKAGE`), le mode étant en cache ;
 - installation ou export : un petit projet tiers qui fait `find_package` sur le résultat, avec et sans `COMPONENTS` ;
 - message d'erreur ou cas limite : un projet jetable hors du dépôt, pour ne pas encombrer `exemple/`.
-
-## Limite connue
-
-En mode `TARGET`, `cmu_install_targets` ne reconnaît les dépendances entre composants que par le nom simple de la target. Une target liée par son alias (`LINK_LIBRARIES PUBLIC MonProjet::Core`) n'est pas chargée par le `Config.cmake` du composant qui en dépend, et `find_package(... COMPONENTS ...)` échoue chez l'utilisateur. Si ce point est corrigé, retirer le piège correspondant de `SKILL.md`.

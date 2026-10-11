@@ -259,6 +259,15 @@ macro(cmu_add_target)
         endif()
     endif()
 
+    # A MODULE library is loaded at run time: no executable links it, so it is installed where they look for it.
+    if(_ADD_TARGET_TYPE STREQUAL "MODULE" AND DEFINED cmu_plugins_dir AND NOT "${cmu_plugins_dir}" STREQUAL "")
+        if(IS_ABSOLUTE "${cmu_plugins_dir}")
+            message(FATAL_ERROR "cmu_add_target(${_ADD_TARGET_NAME}): cmu_plugins_dir must be relative to the "
+                "directory of the executables (got '${cmu_plugins_dir}')")
+        endif()
+        set_property(GLOBAL PROPERTY CMU_PLUGINS_DIR_${_ADD_TARGET_NAME} "${cmu_plugins_dir}")
+    endif()
+
     # Deferred to the end of this directory: add_custom_command(TARGET) is limited to the target's directory.
     # EVAL bakes the name in: deferred arguments are expanded late, after the cleanup below.
     if(_ADD_TARGET_TYPE STREQUAL "EXECUTABLE" AND COMMAND _cmu_qt_deploy AND NOT CMAKE_VERSION VERSION_LESS 3.19)
