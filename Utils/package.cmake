@@ -6,6 +6,8 @@ include(GNUInstallDirs)
 # CMAKE_CURRENT_LIST_DIR is the caller's inside a function: capture the template path at include time.
 set(_CMU_PACKAGE_CONFIG_TEMPLATE "${CMAKE_CURRENT_LIST_DIR}/PackageConfig.cmake.in")
 set(_CMU_COMPONENTS_CONFIG_TEMPLATE "${CMAKE_CURRENT_LIST_DIR}/PackageComponentsConfig.cmake.in")
+# CMakeUtils itself, which cmu_add_cmake_files(CMAKEUTILS) ships with a package.
+get_filename_component(_CMU_ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(_CMU_PACKAGE_COMPONENT cmu_package)
 
 if(NOT DEFINED cmu_package)
@@ -69,6 +71,80 @@ function(_cmu_install_headers directory destination)
         install(DIRECTORY "${directory}/" DESTINATION "${destination}"
             COMPONENT ${_CMU_PACKAGE_COMPONENT})
     endif()
+endfunction()
+
+# Ships CMake files with <target> in the package: next to its Config, which includes the INCLUDE ones (see README.md).
+# Only recorded here: the install rules are written with those of the target, once the install mode is known.
+function(cmu_add_cmake_files)
+    cmake_parse_arguments(ARG "CMAKEUTILS" "TARGET" "INCLUDE;FILES;DIRECTORIES" ${ARGN})
+    if(DEFINED ARG_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "cmu_add_cmake_files: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}")
+    endif()
+    if(NOT DEFINED ARG_TARGET)
+        message(FATAL_ERROR "cmu_add_cmake_files: TARGET is required")
+    endif()
+    # Only the targets of cmu_add_target are installed, with a Config to include the files from.
+    get_property(_targets GLOBAL PROPERTY CMU_PACKAGE_TARGETS)
+    if(NOT ARG_TARGET IN_LIST _targets)
+        message(FATAL_ERROR "cmu_add_cmake_files(${ARG_TARGET}): TARGET must be created by cmu_add_target first "
+            "(an OBJECT library is not installed)")
+    endif()
+
+    foreach(_keyword IN ITEMS INCLUDE FILES DIRECTORIES)
+        foreach(_path IN LISTS ARG_${_keyword})
+            get_filename_component(_path "${_path}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+            if(_keyword STREQUAL "DIRECTORIES")
+                if(NOT IS_DIRECTORY "${_path}")
+                    message(FATAL_ERROR "cmu_add_cmake_files(${ARG_TARGET}): '${_path}' is not a directory")
+                endif()
+            elseif(NOT EXISTS "${_path}" OR IS_DIRECTORY "${_path}")
+                message(FATAL_ERROR "cmu_add_cmake_files(${ARG_TARGET}): '${_path}' is not a file")
+            endif()
+            set_property(GLOBAL APPEND PROPERTY CMU_CMAKE_${_keyword}_${ARG_TARGET} "${_path}")
+        endforeach()
+    endforeach()
+    if(ARG_CMAKEUTILS)
+        set_property(GLOBAL PROPERTY CMU_CMAKE_CMAKEUTILS_${ARG_TARGET} TRUE)
+    endif()
+endfunction()
+
+# Installs in <destination> what cmu_add_cmake_files added to <targets>. Sets <cmakeutils> and <includes> to the lines
+# of the Config installed there that load CMakeUtils and include the INCLUDE files.
+function(_cmu_install_cmake_files targets destination cmakeutils includes)
+    set(_cmakeutils_lines)
+    set(_include_lines)
+    foreach(_target IN LISTS targets)
+        get_property(_included GLOBAL PROPERTY CMU_CMAKE_INCLUDE_${_target})
+        get_property(_files GLOBAL PROPERTY CMU_CMAKE_FILES_${_target})
+        get_property(_directories GLOBAL PROPERTY CMU_CMAKE_DIRECTORIES_${_target})
+        get_property(_with_cmakeutils GLOBAL PROPERTY CMU_CMAKE_CMAKEUTILS_${_target})
+        if(_included OR _files)
+            install(FILES ${_included} ${_files} DESTINATION ${destination} COMPONENT ${_CMU_PACKAGE_COMPONENT})
+        endif()
+        if(_directories)
+            install(DIRECTORY ${_directories} DESTINATION ${destination} COMPONENT ${_CMU_PACKAGE_COMPONENT})
+        endif()
+        foreach(_file IN LISTS _included)
+            get_filename_component(_name "${_file}" NAME)
+            list(APPEND _include_lines "include(\"\${CMAKE_CURRENT_LIST_DIR}/${_name}\")")
+        endforeach()
+        # Once per Config, whichever of its targets asked for it.
+        if(_with_cmakeutils AND NOT _cmakeutils_lines)
+            install(FILES "${_CMU_ROOT_DIR}/CMakeUtils.cmake"
+                DESTINATION ${destination}/CMakeUtils COMPONENT ${_CMU_PACKAGE_COMPONENT})
+            install(DIRECTORY "${_CMU_ROOT_DIR}/Utils" "${_CMU_ROOT_DIR}/Template"
+                DESTINATION ${destination}/CMakeUtils COMPONENT ${_CMU_PACKAGE_COMPONENT})
+            # A project that included its own CMakeUtils keeps it: a second copy would install its targets twice.
+            list(APPEND _cmakeutils_lines
+                "if(NOT COMMAND cmu_add_target)"
+                "    include(\"\${CMAKE_CURRENT_LIST_DIR}/CMakeUtils/CMakeUtils.cmake\")"
+                "endif()")
+        endif()
+    endforeach()
+    list(JOIN _cmakeutils_lines "\n" _cmakeutils_lines)
+    list(JOIN _include_lines "\n" _include_lines)
+    set(${cmakeutils} "${_cmakeutils_lines}" PARENT_SCOPE)
+    set(${includes} "${_include_lines}" PARENT_SCOPE)
 endfunction()
 
 # Sets <result> to the SHARED library targets of this project reached from <targets>.
@@ -219,8 +295,10 @@ function(cmu_install_targets)
             DESTINATION ${_cmake_dir}
             COMPONENT ${_CMU_PACKAGE_COMPONENT})
 
-        # Component Config: its own find_package() dependencies, then the components it links.
+        # Component Config: CMakeUtils when its CMake files call it, its own find_package() dependencies, the components
+        # it links, then its CMake files.
         set(CMU_PACKAGE_NAME "${_target}")
+        _cmu_install_cmake_files(${_target} ${_cmake_dir} CMU_PACKAGE_CMAKEUTILS CMU_PACKAGE_CMAKE_FILES)
         set(CMU_PACKAGE_DEPENDENCIES "")
         _cmu_deduce_dependencies(${_target} _dependencies)
         foreach(_dependency IN LISTS _dependencies)
@@ -328,8 +406,12 @@ function(cmu_add_package)
     endforeach()
 
     set(CMU_PACKAGE_TARGETS "")
+    set(CMU_PACKAGE_CMAKEUTILS "")
+    set(CMU_PACKAGE_CMAKE_FILES "")
     if(DEFINED ARG_TARGETS)
         string(APPEND CMU_PACKAGE_TARGETS "include(\"\${CMAKE_CURRENT_LIST_DIR}/${ARG_NAME}Targets.cmake\")")
+        # One Config for every target: their CMake files are side by side next to it.
+        _cmu_install_cmake_files("${ARG_TARGETS}" ${ARG_DESTINATION} CMU_PACKAGE_CMAKEUTILS CMU_PACKAGE_CMAKE_FILES)
 
         # One call per target: a plugin goes in cmu_plugins_dir next to the executables, not with the other libraries.
         foreach(_target IN LISTS ARG_TARGETS)

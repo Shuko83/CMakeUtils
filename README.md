@@ -261,7 +261,7 @@ install/
 ```
 
 - `<target>Targets.cmake` déclare la target importée `<projet>::<target>` et couvre toutes les configurations installées (`Debug`, `Release`), chacune pointant vers son `<target>/<config>/`.
-- `<target>Config.cmake` reprend les `find_package()` dont la target a besoin (par exemple Qt) et charge les composants dont elle dépend (`MyQtApp` charge `MyStaticLib` et `MySharedLib`), qu'ils soient liés par leur nom ou par leur alias `NAMESPACE`.
+- `<target>Config.cmake` reprend les `find_package()` dont la target a besoin (par exemple Qt) et charge les composants dont elle dépend (`MyQtApp` charge `MyStaticLib` et `MySharedLib`), qu'ils soient liés par leur nom ou par leur alias `NAMESPACE`. Il inclut aussi les fichiers CMake livrés avec la target (voir [`cmu_add_cmake_files`](#cmu_add_cmake_files)).
 - `exempleConfig.cmake` charge les composants demandés, ou tous s'il n'y en a pas, et renseigne `exemple_<composant>_FOUND` ; un composant `REQUIRED` inconnu fait échouer `find_package`.
 
 ```cmake
@@ -377,6 +377,63 @@ Remarques :
 - Un argument inconnu, une `COMPATIBILITY` invalide ou une version absente arrête la configuration avec un message d'erreur.
 - `cmu_add_package` est une fonction : elle ne laisse aucune variable dans la portée de l'appelant.
 - Le projet doit être compilé avant `cmake --install`.
+
+#### `cmu_add_cmake_files`
+
+Livre des fichiers CMake avec une target : ils sont installés à côté de son `Config.cmake`, qui inclut ceux de `INCLUDE`. Un projet tiers reçoit ainsi les fonctions CMake du projet par `find_package`, sans rien inclure lui-même.
+
+```cmake
+cmu_add_cmake_files(
+    TARGET <target>
+    [INCLUDE <fichier>...]
+    [FILES <fichier>...]
+    [DIRECTORIES <dossier>...]
+    [CMAKEUTILS]
+)
+```
+
+| Mot-clé       | Rôle                                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------------ |
+| `TARGET`      | Target créée avec `cmu_add_target` avec laquelle les fichiers sont livrés (obligatoire)                |
+| `INCLUDE`     | Fichiers installés et inclus par le `Config.cmake`, dans l'ordre donné, après les targets importées    |
+| `FILES`       | Fichiers installés sans être inclus (un modèle, un module que les fichiers de `INCLUDE` incluent)      |
+| `DIRECTORIES` | Dossiers installés avec leur contenu, sous leur nom (`cmake/Template` → `Template/`)                   |
+| `CMAKEUTILS`  | Livre aussi CMakeUtils, dans `CMakeUtils/`, et le charge en premier si le projet tiers ne l'a pas déjà |
+
+| `cmu_install_mode` | Emplacement des fichiers                                                              |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| `TARGET`           | `<prefix>/<target>/cmake/`, à côté de `<target>Config.cmake`                          |
+| `PACKAGE`          | `<prefix>/lib/cmake/<paquet>/`, à côté de `<paquet>Config.cmake`, toutes targets confondues |
+
+```cmake
+# Core/CMakeLists.txt
+cmu_add_shared_library(NAME Core)
+
+cmu_add_cmake_files(
+    TARGET Core
+    INCLUDE cmake/CoreModule.cmake    # définit core_add_module(), qui appelle cmu_add_target
+    DIRECTORIES cmake/Template        # les modèles que core_add_module() configure
+    CMAKEUTILS
+)
+```
+
+```cmake
+# Projet tiers, avec CMAKE_PREFIX_PATH=chemin/vers/install
+project(tiers VERSION 1.0.0 LANGUAGES CXX)
+
+find_package(exemple REQUIRED COMPONENTS Core)
+
+core_add_module(NAME Extension)
+```
+
+Remarques :
+
+- Les chemins relatifs sont relatifs au `CMakeLists.txt` appelant. Un fichier ou un dossier introuvable, ou une target qui n'a pas été créée par `cmu_add_target`, arrête la configuration avec un message d'erreur.
+- À appeler après le `cmu_add_target` de la target, et avant un appel explicite à `cmu_install_targets` ou `cmu_add_package`.
+- Un fichier inclus retrouve ses voisins par `CMAKE_CURRENT_LIST_DIR`, qui est le dossier d'installation une fois livré. Dans une fonction, cette variable est celle de l'appelant : la lire à l'inclusion du fichier.
+- Un fichier inclus est exécuté à chaque `find_package` du paquet : `include_guard(GLOBAL)` en tête s'il ne doit l'être qu'une fois.
+- `CMAKEUTILS` sert quand les fichiers livrés appellent des commandes `cmu_*`. Le projet tiers reçoit alors tout ce que fait l'inclusion de `CMakeUtils.cmake` (standard C++, dossier d'installation par défaut, installation automatique de ses propres targets) : il appelle `find_package` après `project()`, dans son `CMakeLists.txt` racine, et définit ses variables `cmu_*` avant. S'il inclut son propre CMakeUtils, il le fait avant `find_package` : c'est alors le sien qui sert.
+- En mode `PACKAGE`, les fichiers de toutes les targets sont dans le même dossier : deux fichiers de même nom s'y remplacent.
 
 ### qt.cmake
 
