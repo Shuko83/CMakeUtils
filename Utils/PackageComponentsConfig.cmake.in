@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Fabien Di Grande
+# SPDX-License-Identifier: MPL-2.0
+
 @PACKAGE_INIT@
 
 # find_package(<package> COMPONENTS <target>...): every target is a component with its own Config; none requested = all.

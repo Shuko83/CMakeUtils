@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Fabien Di Grande
+# SPDX-License-Identifier: MPL-2.0
+
 # Entry point: sets the default directories (cache entries, unless already defined) and loads every module.
 if(NOT DEFINED CMAKE_PROJECT_NAME)
     message(FATAL_ERROR "CMakeUtils must be included after project()")

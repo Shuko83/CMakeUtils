@@ -452,3 +452,16 @@ Sous Windows, tout exécutable créé avec `cmu_add_target` (ou `cmu_add_executa
 - À l'installation (`cmake --install` et copie du paquet automatique), `windeployqt` est aussi lancé sur l'exécutable installé : les DLL Qt se retrouvent dans `bin/`, à côté de lui. Cela passe par `cmu_add_package` (automatique ou explicite, avec l'exécutable dans `TARGETS`).
 - `-Dcmu_windeployqt=OFF` désactive ce comportement.
 - Nécessite CMake 3.19. Seules les bibliothèques déjà déclarées à la fin du `CMakeLists.txt` de l'exécutable sont examinées : ajouter les sous-dossiers des bibliothèques avant celui de l'exécutable.
+
+## Licence
+
+CMakeUtils est distribué sous la [Mozilla Public License 2.0](LICENSE). Copyright (C) 2026 Fabien Di Grande.
+
+- Chacun peut utiliser, modifier et distribuer CMakeUtils, dans un projet de toute nature, commercial ou non.
+- Un projet qui inclut CMakeUtils garde la licence que son auteur choisit, ouverte ou fermée : ses `CMakeLists.txt` et ses sources ne sont pas concernés.
+- Un fichier de CMakeUtils reste sous MPL, modifié ou non : qui le redistribue le fait sous cette licence, et rend disponible la source de ce qu'il a modifié.
+- Les fichiers générés depuis les modèles de CMakeUtils (`<NAME>_info.h`, `<NAME>_info.cpp`, `<NAME>_info.rc` et les `Config.cmake` d'un paquet) viennent d'un fichier de CMakeUtils, en reprennent l'en-tête et restent eux aussi sous MPL ; les sources du projet, non.
+
+Ce résumé ne remplace pas la [licence](LICENSE). Chaque module, modèle et fichier de l'exemple porte une notice de deux lignes (copyright et `SPDX-License-Identifier: MPL-2.0`) ; pour les fichiers qui n'en ont pas, comme ce README, la notice est celle-ci :
+
+> This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
