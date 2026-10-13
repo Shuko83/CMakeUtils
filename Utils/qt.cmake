@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Fabien Di Grande
+# SPDX-License-Identifier: MPL-2.0
+
 # Lets find_package(Qt6) work from the QTDIR environment variable (e.g. C:\Qt\6.11.2\msvc2022_64).
 if(DEFINED ENV{QTDIR})
     file(TO_CMAKE_PATH "$ENV{QTDIR}" _cmu_qt_dir)
