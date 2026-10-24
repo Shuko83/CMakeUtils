@@ -10,6 +10,7 @@
 | `Utils/qt.cmake`                         | `QTDIR`, détection de Qt dans le graphe de liens, `windeployqt` (compilation et installation) |
 | `Utils/target.cmake`                     | `cmu_add_target` et ses raccourcis                                                     |
 | `Utils/package.cmake`                    | Installation automatique, `cmu_install_targets`, `cmu_add_package`, `cmu_add_cmake_files`, target `cmu_package` |
+| `Utils/download.cmake`                   | `cmu_download_package` : téléchargement et extraction d'un paquet, puis `find_package` |
 | `Utils/Package*Config.cmake.in`          | Modèles des fichiers `Config.cmake` (paquet, et paquet à composants du mode `TARGET`)  |
 | `Template/target_*.in`                   | Modèles des fichiers d'informations de chaque target (`_info.h`, `_info.cpp`, `_info.rc`) ; l'en-tête d'export vient de `generate_export_header` |
 | `exemple/`                               | Projet de démonstration ; c'est aussi le banc d'essai                                  |
