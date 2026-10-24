@@ -435,6 +435,49 @@ Remarques :
 - `CMAKEUTILS` sert quand les fichiers livrés appellent des commandes `cmu_*`. Le projet tiers reçoit alors tout ce que fait l'inclusion de `CMakeUtils.cmake` (standard C++, dossier d'installation par défaut, installation automatique de ses propres targets) : il appelle `find_package` après `project()`, dans son `CMakeLists.txt` racine, et définit ses variables `cmu_*` avant. S'il inclut son propre CMakeUtils, il le fait avant `find_package` : c'est alors le sien qui sert.
 - En mode `PACKAGE`, les fichiers de toutes les targets sont dans le même dossier : deux fichiers de même nom s'y remplacent.
 
+### download.cmake
+
+#### `cmu_download_package`
+
+Télécharge l'archive d'un paquet déjà compilé (une release GitHub, par exemple), l'extrait dans l'arbre de build puis appelle `find_package` dessus.
+
+```cmake
+cmu_download_package(
+    NAME <paquet>
+    URL <url>
+    [SHA256 <empreinte>]
+    [DESTINATION <dossier>]
+    [FIND_PACKAGE_ARGS <arguments>...]
+)
+```
+
+| Mot-clé             | Rôle                                                                                   | Défaut                     |
+| ------------------- | -------------------------------------------------------------------------------------- | -------------------------- |
+| `NAME`              | Nom passé à `find_package` (obligatoire)                                               |                            |
+| `URL`               | Archive à télécharger : `.zip`, `.tar.gz`, `.7z`... (obligatoire)                      |                            |
+| `SHA256`            | Empreinte attendue de l'archive ; une archive différente arrête la configuration       | aucune vérification        |
+| `DESTINATION`       | Dossier d'extraction, relatif au dossier de build courant                              | `<build>/_deps/<NAME>`     |
+| `FIND_PACKAGE_ARGS` | Arguments ajoutés après `find_package(<NAME>`                                          | aucun                      |
+
+```cmake
+cmu_download_package(
+    NAME Nebula
+    URL https://github.com/Shuko83/Nebula/releases/download/1.0.0/Nebula-1.0.0-x64.zip
+    SHA256 bed76d8811e63743e043d50f59ab85d7bf00231cd1a0eb1c63829873ebc5d2b2
+    FIND_PACKAGE_ARGS 1.0.0 REQUIRED COMPONENTS Core
+)
+
+target_link_libraries(app PRIVATE Nebula::Core)
+```
+
+- Le téléchargement utilise `file(DOWNLOAD)`, c'est-à-dire le libcurl intégré à CMake : aucun `curl` n'est nécessaire. Le certificat TLS est vérifié.
+- L'archive est gardée dans `<build>/_downloads` et n'est extraite qu'une fois : une nouvelle configuration ne télécharge rien, sauf si l'archive a été supprimée ou ne correspond plus à `SHA256`. Changer `URL` extrait à nouveau.
+- Si l'archive contient un seul dossier (`Nebula-1.0.0-x64/`), son contenu est placé directement dans `DESTINATION`, qui devient le préfixe du paquet.
+- `DESTINATION` est ajouté à `CMAKE_PREFIX_PATH`, puis `find_package` est appelé sans `PATHS` : l'appel mémorisé et repris dans les `Config.cmake` générés (voir [Mode `PACKAGE`](#mode-package)) ne contient aucun chemin de l'arbre de build.
+- `cmu_download_package` est une macro : `find_package` s'exécute dans la portée de l'appelant, et les variables du paquet (`<NAME>_FOUND`, `<NAME>_VERSION`...) y restent visibles. Ses variables internes (préfixe `_CMU_DOWNLOAD_`) sont supprimées en fin d'appel.
+- Un argument inconnu, un `NAME` ou une `URL` manquant, ou un échec du téléchargement arrête la configuration avec un message d'erreur.
+- Nécessite CMake 3.18 (`file(ARCHIVE_EXTRACT)`).
+
 ### qt.cmake
 
 Ajoute le contenu de la variable d'environnement `QTDIR` (par exemple `C:\Qt\6.11.2\msvc2022_64`) à `CMAKE_PREFIX_PATH`, ce qui permet à `find_package(Qt6 ...)` de trouver Qt sans `-DCMAKE_PREFIX_PATH`.

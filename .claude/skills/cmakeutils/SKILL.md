@@ -1,6 +1,6 @@
 ---
 name: cmakeutils
-description: "Utiliser et faire évoluer CMakeUtils, les modules CMake cmu_* de ce dépôt (cmu_add_target, cmu_add_executable, cmu_add_static_library, cmu_add_shared_library, cmu_add_interface_library, cmu_add_package, cmu_install_targets, cmu_add_cmake_files, variables cmu_*). À consulter avant d'écrire du CMake dès qu'un projet inclut CMakeUtils.cmake ou qu'un CMakeLists.txt contient un appel cmu_*, même si la demande ne nomme pas CMakeUtils. Couvre : ajouter ou modifier une bibliothèque ou un exécutable, lier Qt, exporter les symboles d'une DLL, installer ou empaqueter pour find_package, diagnostiquer une erreur de configuration ou de génération. À consulter aussi pour modifier les modules eux-mêmes (Utils/*.cmake, Template/*.in, README)."
+description: "Utiliser et faire évoluer CMakeUtils, les modules CMake cmu_* de ce dépôt (cmu_add_target, cmu_add_executable, cmu_add_static_library, cmu_add_shared_library, cmu_add_interface_library, cmu_add_package, cmu_install_targets, cmu_add_cmake_files, cmu_download_package, variables cmu_*). À consulter avant d'écrire du CMake dès qu'un projet inclut CMakeUtils.cmake ou qu'un CMakeLists.txt contient un appel cmu_*, même si la demande ne nomme pas CMakeUtils. Couvre : ajouter ou modifier une bibliothèque ou un exécutable, lier Qt, exporter les symboles d'une DLL, installer ou empaqueter pour find_package, diagnostiquer une erreur de configuration ou de génération. À consulter aussi pour modifier les modules eux-mêmes (Utils/*.cmake, Template/*.in, README)."
 ---
 
 # CMakeUtils
@@ -203,6 +203,17 @@ target_link_libraries(app PRIVATE MonProjet::Core)
 ```
 
 Dans les deux cas, pointer `CMAKE_PREFIX_PATH` sur le préfixe. Pour choisir le nom, les targets ou les dépendances du paquet, voir `cmu_add_package` dans le README.
+
+**Dépendre d'un paquet publié en archive.** `cmu_download_package` télécharge (libcurl de CMake, sans `curl`), extrait dans `<build>/_deps/<NAME>` puis appelle `find_package` ; pas de `file(DOWNLOAD)` ni de `CMAKE_PREFIX_PATH` à écrire. À appeler après l'inclusion, comme un `find_package`.
+
+```cmake
+cmu_download_package(
+    NAME Nebula
+    URL https://github.com/Shuko83/Nebula/releases/download/1.0.0/Nebula-1.0.0-x64.zip
+    SHA256 bed76d8811e63743e043d50f59ab85d7bf00231cd1a0eb1c63829873ebc5d2b2
+    FIND_PACKAGE_ARGS 1.0.0 REQUIRED COMPONENTS Core
+)
+```
 
 **Livrer ses propres fonctions CMake avec le paquet.** Quand le projet définit une fonction dont ses utilisateurs ont besoin (créer un plugin, générer un fichier), `cmu_add_cmake_files` installe son fichier à côté du `Config.cmake` de la target, qui l'inclut : `find_package` suffit au projet tiers.
 
