@@ -1,0 +1,26 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+# Pas de nettoyage automatique tant que le code n'est pas reformaté (évite le bruit dans les diffs).
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+[*.{h,hpp,cpp,hxx,cxx}]
+indent_style = space
+indent_size = 4
+
+[{CMakeLists.txt,*.cmake}]
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[Jenkinsfile]
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false

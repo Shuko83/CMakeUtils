@@ -1,0 +1,22 @@
+* text=auto
+
+*.h text
+*.hpp text
+*.cpp text
+*.cmake text
+CMakeLists.txt text
+Jenkinsfile text
+*.json text
+*.md text
+
+*.png binary
+*.jpg binary
+*.bmp binary
+*.ico binary
+*.psd binary
+*.doc binary
+*.docx binary
+*.ppt binary
+*.vsd binary
+*.cdd binary
+*.EAP binary

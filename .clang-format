@@ -1,0 +1,29 @@
+---
+Language: Cpp
+Standard: c++20
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+BreakBeforeBraces: Allman
+AccessModifierOffset: -4
+IndentCaseLabels: true
+NamespaceIndentation: None
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+BreakConstructorInitializers: BeforeComma
+# L'ordre des includes est significatif (en-têtes Windows, Qt, pch) : on ne le modifie pas.
+SortIncludes: Never
+ReflowComments: false
+FixNamespaceComments: false
+# Les macros Qt ne doivent pas être interprétées comme des appels de fonction.
+StatementMacros:
+  - Q_OBJECT
+  - Q_GADGET
+  - Q_DECLARE_METATYPE
+  - Q_DECLARE_INTERFACE
+...
