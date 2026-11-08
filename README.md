@@ -27,7 +27,7 @@ Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/Utils/ta
 
 ### Dossiers par défaut
 
-`CMakeUtils.cmake` définit sept variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
+`CMakeUtils.cmake` définit neuf variables de cache (type `STRING`), sans toucher à une valeur déjà définie avant l'inclusion (variable normale ou `-D` en ligne de commande) :
 
 | Variable                 | Défaut    | Rôle                                                    |
 | ------------------------ | --------- | ------------------------------------------------------- |
@@ -38,6 +38,8 @@ Un module peut aussi être inclus seul (`include(chemin/vers/CMakeUtils/Utils/ta
 | `cmu_organization`       | `Shuko83` | Organisation écrite dans l'en-tête d'informations de chaque target |
 | `cmu_organization_domain` | `https://github.com/Shuko83` | Domaine de l'organisation (ex. `example.com`), écrit dans le même en-tête |
 | `cmu_copyright`          | `Copyright (C) <année> <cmu_organization>` | Copyright des targets ; l'année est celle de la première configuration |
+| `cmu_version_suffix`     | vide      | Ajouté à `PROJECT_VERSION`, la version par défaut des targets (ex. `-rc0`) |
+| `cmu_platform`           | lue du compilateur | Plateforme des targets : `win-<architecture>` sous Windows (`win-x64`, `win-x86`, `win-arm64`), le système seul ailleurs (`linux`, `macos`) |
 
 ```cmake
 set(cmu_public_headers_dir "api")
@@ -92,7 +94,7 @@ cmu_add_target(
 | `TYPE`                | `EXECUTABLE` → `add_executable()`, les autres → `add_library()` (obligatoire) |
 | `SHARED_EXTENSION`    | Extension du fichier d'une bibliothèque `SHARED` ou `MODULE`, avec ou sans point (`plugin`, `.plugin`) ; sans effet, avec un avertissement, pour les autres types |
 | `NAMESPACE`           | Crée l'alias `<namespace>::<NAME>` de la target, avec ou sans `::` final (`namespace` ou `namespace::`) |
-| `VERSION`             | Version de la target écrite dans l'en-tête d'informations (défaut : `PROJECT_VERSION`, sinon `0.0.0`) |
+| `VERSION`             | Version de la target écrite dans l'en-tête d'informations (défaut : `PROJECT_VERSION`, sinon `0.0.0`, suivie de `cmu_version_suffix`) |
 | `SOURCES`             | Fichiers sources supplémentaires, relatifs à `cmu_sources_dir`                |
 | `INCLUDE_DIRECTORIES` | Transmis à `target_include_directories()`                                     |
 | `COMPILE_DEFINITIONS` | Transmis à `target_compile_definitions()`                                     |
@@ -133,7 +135,7 @@ Pour chaque target non `INTERFACE`, les fichiers `<NAME>_info.h` et `<NAME>_info
 
 Dans le projet Visual Studio, les fichiers générés par CMakeUtils sont regroupés dans le dossier `autogen\cmu` (`source_group`), et ceux de Qt dans les sous-dossiers `autogen\moc` (`mocs_compilation*.cpp`), `autogen\rcc` (`qrc_*.cpp`) et `autogen\uic` (`ui_*.h`).
 
-Sous Windows, les exécutables et les bibliothèques `SHARED` ou `MODULE` reçoivent aussi une ressource de version `<NAME>_info.rc` (depuis [Template/target_info.rc.in](Template/target_info.rc.in)), visible dans l'onglet Détails des propriétés du fichier : société (`organization`), description et nom interne (`name`), nom d'origine du fichier, produit (`product`), copyright (`copyright`) et version (`version`). La version numérique est lue depuis `version` en `major.minor.patch.0` (0 si une partie manque ou n'est pas numérique).
+Sous Windows, les exécutables et les bibliothèques `SHARED` ou `MODULE` reçoivent aussi une ressource de version `<NAME>_info.rc` (depuis [Template/target_info.rc.in](Template/target_info.rc.in)), visible dans l'onglet Détails des propriétés du fichier : société (`organization`), description, nom interne (`name`), nom d'origine du fichier, produit (`product`), copyright (`copyright`) et version (`version`, suffixe compris). La description est le nom de la target suivi de ce avec quoi elle est construite, `<name> (<cmu_platform>, <compiler>, Qt <qtVersion>)`, sans Qt quand il n'est pas trouvé : `MyQtApp (win-x64, MSVC 19.51.36260.0, Qt 6.12.0)`. Windows montre aussi la description comme nom d'un exécutable (gestionnaire des tâches, « Ouvrir avec »). La version numérique est lue depuis `version` en `major.minor.patch.build` (0 si une partie manque, le suffixe laissé de côté : `2.2.0-rc0` donne `2.2.0.0`).
 
 Exemple, avec un `CMakeLists.txt` par target (voir [exemple/](exemple/CMakeLists.txt)) :
 

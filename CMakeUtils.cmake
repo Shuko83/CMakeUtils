@@ -29,6 +29,10 @@ if(NOT DEFINED cmu_copyright)
     set(cmu_copyright "Copyright (C) ${_cmu_year} ${cmu_organization}" CACHE STRING "Copyright written in the info files of each target")
     unset(_cmu_year)
 endif()
+# A suffix, not a whole version: the numbers stay the ones of project(), which change without touching the cache.
+if(NOT DEFINED cmu_version_suffix)
+    set(cmu_version_suffix "" CACHE STRING "Appended to PROJECT_VERSION, the default version of the targets (e.g. -rc0)")
+endif()
 
 # Modern C++ rules; apply to the targets created after this file is included.
 if(NOT DEFINED CMAKE_CXX_STANDARD)
@@ -54,5 +58,12 @@ endif()
 set(UTILS_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Utils")
 include(${UTILS_DIRECTORY}/qt.cmake)
 include(${UTILS_DIRECTORY}/target.cmake)
+
+# Read from the compiler, which target.cmake knows how to name.
+if(NOT DEFINED cmu_platform)
+    _cmu_platform(_cmu_platform)
+    set(cmu_platform "${_cmu_platform}" CACHE STRING "Platform the targets are built for (win-x64, linux, macos)")
+    unset(_cmu_platform)
+endif()
 include(${UTILS_DIRECTORY}/package.cmake)
 include(${UTILS_DIRECTORY}/download.cmake)

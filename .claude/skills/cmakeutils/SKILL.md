@@ -89,6 +89,8 @@ Les variables se définissent avant `include(CMakeUtils.cmake)` ou avec `-D`. Le
 | `cmu_headers_extension`                                    | `h`               | extensions prises dans `cmu_public_headers_dir` (liste) |
 | `cmu_plugins_dir`                                          | `plugins`         | où les bibliothèques `MODULE` sont installées, relatif au dossier des exécutables ; vide : pas à côté d'eux |
 | `cmu_organization`, `cmu_organization_domain`, `cmu_copyright` | ceux de l'auteur  | écrits dans les fichiers d'informations ; à redéfinir pour un autre éditeur |
+| `cmu_version_suffix`                                       | vide              | ajouté à `PROJECT_VERSION`, la version par défaut des targets (`-rc0`) |
+| `cmu_platform`                                             | lue du compilateur | `win-x64`, `linux`, `macos` : dans la description de la ressource de version |
 | `cmu_package`                                              | `ON`              | installation et copie automatiques                    |
 | `cmu_install_mode`                                         | `TARGET`          | `TARGET` : un dossier par target ; `PACKAGE` : un seul préfixe |
 | `cmu_package_dir`                                          | `<build>/package` | où le résultat est copié après chaque compilation     |

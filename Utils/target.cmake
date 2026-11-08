@@ -7,6 +7,46 @@ include(GenerateExportHeader)
 
 set(_CMU_TEMPLATE_DIR "${CMAKE_CURRENT_LIST_DIR}/../Template")
 
+# Sets <result> to what names the architecture the targets are built for, in lower case: MSVC tells it
+# (CMAKE_<LANG>_COMPILER_ARCHITECTURE_ID), other compilers leave the processor of the system.
+function(_cmu_architecture_id result)
+    set(${result} "unknown" PARENT_SCOPE)
+    foreach(_id "${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}" "${CMAKE_C_COMPILER_ARCHITECTURE_ID}" "${CMAKE_SYSTEM_PROCESSOR}")
+        if(NOT _id STREQUAL "")
+            string(TOLOWER "${_id}" _id)
+            set(${result} "${_id}" PARENT_SCOPE)
+            return()
+        endif()
+    endforeach()
+endfunction()
+
+# Sets <result> to the architecture the targets are built for, as Windows names it: x64, x86, arm64.
+function(_cmu_architecture result)
+    _cmu_architecture_id(_architecture)
+    if(_architecture MATCHES "^(amd64|x86_64)$")
+        set(_architecture "x64")
+    elseif(_architecture MATCHES "^i[3-6]86$")
+        set(_architecture "x86")
+    elseif(_architecture STREQUAL "aarch64")
+        set(_architecture "arm64")
+    endif()
+    set(${result} "${_architecture}" PARENT_SCOPE)
+endfunction()
+
+# Sets <result> to the platform the targets are built for: win-<architecture> on Windows (win-x64), the system alone
+# elsewhere (linux, macos).
+function(_cmu_platform result)
+    if(WIN32)
+        _cmu_architecture(_architecture)
+        set(${result} "win-${_architecture}" PARENT_SCOPE)
+    elseif(APPLE)
+        set(${result} "macos" PARENT_SCOPE)
+    else()
+        string(TOLOWER "${CMAKE_SYSTEM_NAME}" _system)
+        set(${result} "${_system}" PARENT_SCOPE)
+    endif()
+endfunction()
+
 # Creates a target; each keyword is forwarded to the matching target_*() command (see README.md).
 macro(cmu_add_target)
     # TYPE takes a value, not a flag, so INTERFACE stays usable as a scope keyword in the lists.
@@ -165,12 +205,13 @@ macro(cmu_add_target)
     if(NOT _ADD_TARGET_TYPE STREQUAL "INTERFACE")
         string(MAKE_C_IDENTIFIER "${_ADD_TARGET_NAME}" _ADD_TARGET_IDENT)
 
+        # A version given is the target's own; the default one, the project's, takes the suffix of the build (-rc0).
         if(DEFINED _ADD_TARGET_VERSION)
             set(_ADD_TARGET_INFO_VERSION "${_ADD_TARGET_VERSION}")
         elseif(PROJECT_VERSION)
-            set(_ADD_TARGET_INFO_VERSION "${PROJECT_VERSION}")
+            set(_ADD_TARGET_INFO_VERSION "${PROJECT_VERSION}${cmu_version_suffix}")
         else()
-            set(_ADD_TARGET_INFO_VERSION "0.0.0")
+            set(_ADD_TARGET_INFO_VERSION "0.0.0${cmu_version_suffix}")
         endif()
         set(_ADD_TARGET_INFO_PRODUCT "${PROJECT_NAME}")
         set(_ADD_TARGET_INFO_ORGANIZATION "${cmu_organization}")
@@ -192,6 +233,13 @@ macro(cmu_add_target)
             set(_ADD_TARGET_INFO_COMPILER "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
         endif()
 
+        # Included alone, target.cmake has no cmu_platform from CMakeUtils.cmake.
+        if(DEFINED cmu_platform)
+            set(_ADD_TARGET_INFO_PLATFORM "${cmu_platform}")
+        else()
+            _cmu_platform(_ADD_TARGET_INFO_PLATFORM)
+        endif()
+
         set(_ADD_TARGET_INFO_DIR "${CMAKE_CURRENT_BINARY_DIR}/${_ADD_TARGET_NAME}_autogen/cmu/include")
         configure_file("${_CMU_TEMPLATE_DIR}/target_info.h.in"
             "${_ADD_TARGET_INFO_DIR}/${_ADD_TARGET_NAME}_info.h" @ONLY)
@@ -207,18 +255,25 @@ macro(cmu_add_target)
 
         # Windows version resource: shown in the Details tab of the file properties.
         if(WIN32 AND _ADD_TARGET_TYPE MATCHES "^(EXECUTABLE|SHARED|MODULE)$")
-            # FILEVERSION needs four numbers: a missing or non numeric part is 0.
+            # FILEVERSION needs four numbers: a missing part is 0, and a suffix (-rc0) is left out.
             set(_ADD_TARGET_INFO_VERSION_NUMBER "0,0,0,0")
-            if("${_ADD_TARGET_INFO_VERSION}" MATCHES "^([0-9]+)(\\.([0-9]+))?(\\.([0-9]+))?")
+            if("${_ADD_TARGET_INFO_VERSION}" MATCHES "^([0-9]+)(\\.([0-9]+))?(\\.([0-9]+))?(\\.([0-9]+))?")
                 set(_ADD_TARGET_INFO_VERSION_NUMBER "${CMAKE_MATCH_1}")
-                foreach(_ADD_TARGET_PART "${CMAKE_MATCH_3}" "${CMAKE_MATCH_5}")
+                foreach(_ADD_TARGET_PART "${CMAKE_MATCH_3}" "${CMAKE_MATCH_5}" "${CMAKE_MATCH_7}")
                     if("${_ADD_TARGET_PART}" STREQUAL "")
                         set(_ADD_TARGET_PART 0)
                     endif()
                     string(APPEND _ADD_TARGET_INFO_VERSION_NUMBER ",${_ADD_TARGET_PART}")
                 endforeach()
-                string(APPEND _ADD_TARGET_INFO_VERSION_NUMBER ",0")
             endif()
+
+            # Its name, then what it is built for and with: what sets apart two builds of the same version.
+            set(_ADD_TARGET_INFO_DESCRIPTION
+                "${_ADD_TARGET_NAME} (${_ADD_TARGET_INFO_PLATFORM}, ${_ADD_TARGET_INFO_COMPILER}")
+            if(NOT _ADD_TARGET_INFO_QT_VERSION STREQUAL "none")
+                string(APPEND _ADD_TARGET_INFO_DESCRIPTION ", Qt ${_ADD_TARGET_INFO_QT_VERSION}")
+            endif()
+            string(APPEND _ADD_TARGET_INFO_DESCRIPTION ")")
 
             if(_ADD_TARGET_TYPE STREQUAL "EXECUTABLE")
                 set(_ADD_TARGET_INFO_FILE_TYPE VFT_APP)
