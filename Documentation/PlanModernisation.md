@@ -2,7 +2,7 @@
 
 ## 1. Objectifs
 
-- Compiler en **C++20**.
+- Rester en **C++14** (C++17 et C++20 ne sont pas possibles) et moderniser le code dans cette limite.
 - Supprimer les classes inutiles.
 - Passer à un format **JSON**, en gardant la lecture des anciens fichiers XML (stream et conf).
 - Supprimer **LibIndeSig** (« libsig ») et la plupart des dépendances **Qst**.
@@ -14,6 +14,7 @@ Décisions prises :
 | Sujet | Décision |
 |---|---|
 | Qt 5.9.6 et MSVC 2015 | Abandonnés. Cibles : MSVC 2022 + Qt 5.15, GCC 11.3 + Qt 5.15. |
+| Standard C++ | **C++14**. C++17 et C++20 sont exclus. Qt 6 exige C++17 : la migration effective vers Qt 6 reste donc bloquée tant que cette contrainte existe. Le plan ne fait que la préparer. |
 | Version | Le nouveau framework est livré en **version majeure**. |
 | Plugins `.swdl` tiers | Recompilation nécessaire. Phase de dépréciation prévue. |
 | Signaux | Qt natif pour les classes `QObject`. Pour les autres : observateurs ou `SwSignal` (hors Qt). |
@@ -67,19 +68,23 @@ Décisions prises :
 4. `ci` : retrait de MSVC 2015 et Qt 5.9.6.
 5. `ci` : `QT_DISABLE_DEPRECATED_BEFORE=0x060000`, en avertissement seulement. On obtient la liste des API qui disparaissent en Qt 6.
 
-### Phase 1 : C++20 et modernisation mécanique
+### Phase 1 : C++14 et modernisation mécanique
 
-1. `build` : `CMAKE_CXX_STANDARD 20` (`REQUIRED`, `EXTENSIONS OFF`) défini une fois à la racine. Ce commit ne contient que les corrections de compilation : `throw()` vers `noexcept`, `[=]` capturant `this`, ambiguïtés de comparaison, `std::bind1st`.
+1. `build` : `CMAKE_CXX_STANDARD 14` (`REQUIRED`, `EXTENSIONS OFF`) défini une fois à la racine. Aucune correction de compilation n'est requise par ce standard. Nettoyage séparé et facultatif : spécifications `throw(X)` supprimées et `throw()` vers `noexcept` (dépréciées depuis C++11, retirées en C++17).
+   - Disponibles : `std::make_unique`, lambdas génériques, `[[deprecated]]` (C++14), `noexcept`, `override`, `nullptr`, `using`, templates variadiques (C++11).
+   - Indisponibles : `std::optional`, `std::variant`, `std::string_view`, `std::as_const`, `if constexpr`, structured bindings, `[[nodiscard]]`, variables `inline`.
 2. Un commit par idiome et par module :
    - `NULL` vers `nullptr` ;
    - ajout de `override` ;
    - `typedef` vers `using` ;
-   - `foreach` vers range-for (avec `std::as_const` si nécessaire) ;
+   - `foreach` vers range-for (avec `qAsConst` si nécessaire, à la place de `std::as_const`) ;
    - `qSort` vers `std::sort`.
 3. `refactor` : `QRegExp` vers `QRegularExpression`. Commit séparé, car la sémantique change.
 4. `build` : activation de `/W4` et `-Wall -Wextra`, suppression des `#pragma warning` et correction des causes.
 
 ### Phase 1 bis : préparation à Qt 6
+
+Qt 6 exige C++17 : cette phase rend le code compatible, mais le passage effectif nécessitera de relever le standard.
 
 - `build` : cibles Qt sans version (`find_package(QT NAMES Qt5 Qt6 ...)`, `Qt::Core`, `Qt::Widgets`, `Qt::Xml`).
 - `refactor` : `SIGNAL()`/`SLOT()` remplacés par `connect()` à pointeur de membre. Cela concerne `_SwConfigurationManagerGui.cpp`, `_SwSwitchExecution_Service.cpp`, `_SwSwitchExecutionSetup.cpp` et deux autres fichiers.
@@ -114,7 +119,7 @@ Choix d'architecture :
 - Les composants ne deviennent pas des `QObject`. Cela imposerait Qt aux plugins et alourdirait les objets.
 
 Commits :
-1. `feat(core)` : `SwSignal<Args...>` variadique C++20, avec tests (ordre d'appel, déconnexion pendant l'émission, durée de vie).
+1. `feat(core)` : `SwSignal<Args...>` variadique C++14, avec tests (ordre d'appel, déconnexion pendant l'émission, durée de vie).
 2. `refactor` : `iSignalN` devient un alias de `SwSignal`. Les membres publics (`OnParentChange`, `OnAddChild`, `GetOnChangeSignal()`) gardent leur nom. `iconnect` et `idisconnect` deviennent des shims `[[deprecated]]`.
 3. Migration interne par module vers `connect()` avec `SwConnection` stocké en membre. Les `idisconnect` des destructeurs disparaissent. Ordre : SwCore, SwExecution, SwModel, SwConfiguration, SwEditor, SwGui, StreamWorkEditor.
 4. `feat` : interfaces observateurs pour les contrats cohérents.
@@ -237,7 +242,7 @@ Utile pour migrer des lots de fichiers et dans la CI.
 
 ## 6. Plugins `.swdl` et dépréciation
 
-- Les plugins tiers doivent être **recompilés** : C++20 et la nouvelle API changent l'ABI.
+- Les plugins tiers doivent être **recompilés** : la nouvelle API (signaux, persistance) change l'ABI.
 - Chaque `.swdl` exporte `SW_PLUGIN_API_VERSION`. `_SwPluginsBank_Class` la vérifie au chargement. Un plugin trop ancien est refusé avec un message clair, pas de crash.
 - Calendrier :
 
@@ -254,7 +259,7 @@ Utile pour migrer des lots de fichiers et dans la CI.
 ## 7. Ordre global
 
 1. Phase 0 : tests, CI, avertissements Qt 6.
-2. Phase 1 : C++20 et modernisation mécanique.
+2. Phase 1 : C++14 et modernisation mécanique.
 3. Phase 1 bis : préparation Qt 6.
 4. Phase 2 : suppression du code inutile.
 5. Phase 3 : signaux et API de version des plugins (en parallèle de la phase 6).
